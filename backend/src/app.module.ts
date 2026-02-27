@@ -5,7 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { appConfig } from './infrastructure/base/config/app.config';
 import { databaseConfig } from './infrastructure/base/config/database.config';
 import { jwtConfig } from './infrastructure/base/config/jwt.config';
-import { HealthController } from './infrastructure/primary-adapters/controllers/health.controller';
+import { HealthController } from './infrastructure/base/controllers/health.controller';
 import { PrismaModule } from './infrastructure/secondary-adapters/database/prisma/prisma.module';
 
 @Module({
