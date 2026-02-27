@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 describe('Architecture Tests - Layer Boundaries', () => {
@@ -21,11 +21,10 @@ describe('Architecture Tests - Layer Boundaries', () => {
   }
 
   function getImports(filePath: string): string[] {
-    const fs = require('fs');
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, 'utf-8');
     const importRegex = /import\s+.*?from\s+['"](.+?)['"]/g;
     const imports: string[] = [];
-    let match;
+    let match: RegExpExecArray | null;
 
     while ((match = importRegex.exec(content)) !== null) {
       imports.push(match[1]);
@@ -36,7 +35,7 @@ describe('Architecture Tests - Layer Boundaries', () => {
 
   it('domain layer should NOT import from application layer', () => {
     const domainPath = join(srcPath, 'domain');
-    if (!require('fs').existsSync(domainPath)) {
+    if (!existsSync(domainPath)) {
       return; // Skip if domain folder doesn't exist yet
     }
 
@@ -54,7 +53,7 @@ describe('Architecture Tests - Layer Boundaries', () => {
 
   it('domain layer should NOT import from infrastructure layer', () => {
     const domainPath = join(srcPath, 'domain');
-    if (!require('fs').existsSync(domainPath)) {
+    if (!existsSync(domainPath)) {
       return;
     }
 
@@ -72,7 +71,7 @@ describe('Architecture Tests - Layer Boundaries', () => {
 
   it('application layer should NOT import from infrastructure layer', () => {
     const applicationPath = join(srcPath, 'application');
-    if (!require('fs').existsSync(applicationPath)) {
+    if (!existsSync(applicationPath)) {
       return;
     }
 
@@ -90,7 +89,7 @@ describe('Architecture Tests - Layer Boundaries', () => {
 
   it('primary-adapters should NOT import from secondary-adapters', () => {
     const primaryPath = join(srcPath, 'infrastructure/primary-adapters');
-    if (!require('fs').existsSync(primaryPath)) {
+    if (!existsSync(primaryPath)) {
       return;
     }
 

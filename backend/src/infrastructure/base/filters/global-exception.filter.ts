@@ -55,23 +55,43 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private mapDomainException(exception: unknown): ErrorResponse {
     if (exception instanceof EntityNotFoundError) {
-      return this.makeResponse(HttpStatus.NOT_FOUND, exception.message, 'Not Found');
+      return this.makeResponse(
+        HttpStatus.NOT_FOUND,
+        exception.message,
+        'Not Found',
+      );
     }
 
     if (exception instanceof ConflictError) {
-      return this.makeResponse(HttpStatus.CONFLICT, exception.message, 'Conflict');
+      return this.makeResponse(
+        HttpStatus.CONFLICT,
+        exception.message,
+        'Conflict',
+      );
     }
 
     if (exception instanceof ValidationError) {
-      return this.makeResponse(HttpStatus.BAD_REQUEST, exception.message, 'Bad Request');
+      return this.makeResponse(
+        HttpStatus.BAD_REQUEST,
+        exception.message,
+        'Bad Request',
+      );
     }
 
     if (exception instanceof AuthenticationError) {
-      return this.makeResponse(HttpStatus.UNAUTHORIZED, exception.message, 'Unauthorized');
+      return this.makeResponse(
+        HttpStatus.UNAUTHORIZED,
+        exception.message,
+        'Unauthorized',
+      );
     }
 
     if (exception instanceof AuthorizationError) {
-      return this.makeResponse(HttpStatus.FORBIDDEN, exception.message, 'Forbidden');
+      return this.makeResponse(
+        HttpStatus.FORBIDDEN,
+        exception.message,
+        'Forbidden',
+      );
     }
 
     return this.makeResponse(

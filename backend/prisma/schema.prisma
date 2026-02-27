@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,11 +7,651 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ═══════════════════════════════════════════════════════
+// AUTENTICACIÓN Y USUARIO
+// ═══════════════════════════════════════════════════════
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
+  id              String          @id @default(cuid())
+  email           String          @unique
+  passwordHash    String
+  username        String          @unique
+  emailVerified   Boolean         @default(false)
+  avatarUrl       String?
+  dateOfBirth     DateTime?
+  gender          Gender?
+  heightCm        Float?
+  currentWeightKg Float?
+  activityLevel   ActivityLevel   @default(MODERATELY_ACTIVE)
+  experience      ExperienceLevel @default(INTERMEDIATE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  preferences       UserPreferences?
+  refreshTokens     RefreshToken[]
+  mesocycles        Mesocycle[]
+  sessions          Session[]
+  meals             Meal[]
+  bodyMetrics       BodyMetric[]
+  progressPhotos    ProgressPhoto[]
+  achievements      UserAchievement[]
+  equipmentProfiles EquipmentProfile[]
+  readinessScores   ReadinessScore[]
+  passwordHistory   PasswordHistory[]
+  volumeLandmarks   UserVolumeLandmark[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model UserPreferences {
+  id                   String     @id @default(cuid())
+  userId               String     @unique
+  unitSystem           UnitSystem @default(METRIC)
+  language             Language   @default(ES)
+  theme                Theme      @default(DARK)
+  restTimeCompoundSec  Int        @default(180)
+  restTimeIsolationSec Int        @default(90)
+  restAlertBeforeSec   Int        @default(30)
+  notifyRestTimer      Boolean    @default(true)
+  notifyReminder       Boolean    @default(true)
+  notifyDeload         Boolean    @default(true)
+  notifyAchievements   Boolean    @default(true)
+  notifyWeightReminder Boolean    @default(true)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════
+// ENTRENAMIENTO — PLANIFICACIÓN
+// ═══════════════════════════════════════════════════════
+
+model Mesocycle {
+  id            String            @id @default(cuid())
+  userId        String
+  name          String
+  description   String?
+  durationWeeks Int
+  objective     TrainingObjective
+  includeDeload Boolean           @default(true)
+  status        MesocycleStatus   @default(DRAFT)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  user         User            @relation(fields: [userId], references: [id])
+  trainingDays TrainingDay[]
+  sessions     Session[]
+  shareLinks   SharedRoutine[]
+
+  @@index([userId, status])
+}
+
+model TrainingDay {
+  id          String   @id @default(cuid())
+  mesocycleId String
+  name        String
+  dayOrder    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mesocycle        Mesocycle         @relation(fields: [mesocycleId], references: [id], onDelete: Cascade)
+  plannedExercises PlannedExercise[]
+  sessions         Session[]
+
+  @@index([mesocycleId, dayOrder])
+}
+
+model PlannedExercise {
+  id            String   @id @default(cuid())
+  trainingDayId String
+  exerciseId    String
+  exerciseOrder Int
+  targetSets    Int
+  targetRepsMin Int
+  targetRepsMax Int
+  targetRir     Int
+  tempo         String?
+  supersetGroup Int?
+  setupNotes    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trainingDay TrainingDay @relation(fields: [trainingDayId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
+
+  @@index([trainingDayId, exerciseOrder])
+}
+
+// ═══════════════════════════════════════════════════════
+// ENTRENAMIENTO — EJECUCIÓN (TRACKING)
+// ═══════════════════════════════════════════════════════
+
+model Session {
+  id              String        @id @default(cuid())
+  userId          String
+  mesocycleId     String?
+  trainingDayId   String?
+  weekNumber      Int?
+  status          SessionStatus @default(IN_PROGRESS)
+  startedAt       DateTime      @default(now())
+  finishedAt      DateTime?
+  durationMinutes Int?
+  sessionNotes    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  user           User              @relation(fields: [userId], references: [id])
+  mesocycle      Mesocycle?        @relation(fields: [mesocycleId], references: [id])
+  trainingDay    TrainingDay?      @relation(fields: [trainingDayId], references: [id])
+  exercises      SessionExercise[]
+  readinessScore ReadinessScore?
+
+  @@index([userId, startedAt(sort: Desc)])
+}
+
+model SessionExercise {
+  id                 String   @id @default(cuid())
+  sessionId          String
+  exerciseId         String
+  originalExerciseId String?
+  exerciseOrder      Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  session  Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise     @relation("SessionExerciseCurrent", fields: [exerciseId], references: [id])
+  original Exercise?    @relation("SessionExerciseOriginal", fields: [originalExerciseId], references: [id])
+  sets     WorkingSet[]
+  warmups  WarmupSet[]
+
+  @@index([sessionId, exerciseOrder])
+}
+
+model WorkingSet {
+  id                String   @id @default(cuid())
+  sessionExerciseId String
+  setOrder          Int
+  weightKg          Float
+  reps              Int
+  rir               Int
+  restTimeSec       Int?
+  notes             String?
+  completed         Boolean  @default(false)
+  skipped           Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  sessionExercise SessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionExerciseId, setOrder])
+}
+
+model WarmupSet {
+  id                String   @id @default(cuid())
+  sessionExerciseId String
+  setOrder          Int
+  weightKg          Float
+  reps              Int
+  completed         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  sessionExercise SessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
+}
+
+model ReadinessScore {
+  id          String   @id @default(cuid())
+  userId      String
+  sessionId   String   @unique
+  sleepScore  Int
+  stressScore Int
+  domsScore   Int
+  totalScore  Float
+  createdAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════
+// EJERCICIOS (CATÁLOGO)
+// ═══════════════════════════════════════════════════════
+
+model Exercise {
+  id                String          @id @default(cuid())
+  nameEs            String
+  nameEn            String
+  movementPattern   MovementPattern
+  difficulty        DifficultyLevel @default(INTERMEDIATE)
+  equipmentType     EquipmentType
+  isCompound        Boolean         @default(true)
+  mediaUrl          String?
+  setupInstructions String?
+  executionSteps    String?
+  commonMistakes    String?
+  variations        String?
+  isCustom          Boolean         @default(false)
+  createdByUserId   String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  primaryMuscles   ExerciseMuscle[]    @relation("PrimaryMuscles")
+  secondaryMuscles ExerciseMuscle[]    @relation("SecondaryMuscles")
+  plannedExercises PlannedExercise[]
+  sessionExercises SessionExercise[]   @relation("SessionExerciseCurrent")
+  originalIn       SessionExercise[]   @relation("SessionExerciseOriginal")
+  equipmentNeeded  ExerciseEquipment[]
+
+  @@index([movementPattern])
+}
+
+model ExerciseMuscle {
+  id             String      @id @default(cuid())
+  primaryForId   String?
+  secondaryForId String?
+  muscleGroup    MuscleGroup
+
+  primaryFor   Exercise? @relation("PrimaryMuscles", fields: [primaryForId], references: [id])
+  secondaryFor Exercise? @relation("SecondaryMuscles", fields: [secondaryForId], references: [id])
+
+  @@index([muscleGroup])
+}
+
+model ExerciseEquipment {
+  id         String        @id @default(cuid())
+  exerciseId String
+  equipment  EquipmentType
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+// ═══════════════════════════════════════════════════════
+// EQUIPAMIENTO DEL USUARIO
+// ═══════════════════════════════════════════════════════
+
+model EquipmentProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  isActive  Boolean  @default(false)
+  isPreset  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user      User                   @relation(fields: [userId], references: [id])
+  equipment ProfileEquipmentItem[]
+
+  @@index([userId, isActive])
+}
+
+model ProfileEquipmentItem {
+  id                 String        @id @default(cuid())
+  equipmentProfileId String
+  equipment          EquipmentType
+
+  profile EquipmentProfile @relation(fields: [equipmentProfileId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════
+// NUTRICIÓN
+// ═══════════════════════════════════════════════════════
+
+model Meal {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id])
+  entries FoodEntry[]
+
+  @@unique([userId, date, mealType])
+  @@index([userId, date])
+}
+
+model FoodEntry {
+  id           String   @id @default(cuid())
+  mealId       String
+  foodId       String?
+  name         String
+  quantityG    Float
+  caloriesKcal Float
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  meal Meal  @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food Food? @relation(fields: [foodId], references: [id])
+
+  @@index([mealId])
+}
+
+model Food {
+  id              String     @id @default(cuid())
+  name            String
+  brand           String?
+  barcode         String?    @unique
+  caloriesPer100g Float
+  proteinPer100g  Float
+  carbsPer100g    Float
+  fatPer100g      Float
+  imageUrl        String?
+  source          FoodSource @default(API)
+  createdByUserId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  entries FoodEntry[]
+}
+
+// ═══════════════════════════════════════════════════════
+// COMPOSICIÓN CORPORAL
+// ═══════════════════════════════════════════════════════
+
+model BodyMetric {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime @db.Date
+  weightKg      Float?
+  neckCm        Float?
+  chestCm       Float?
+  bicepsLeftCm  Float?
+  bicepsRightCm Float?
+  waistCm       Float?
+  hipCm         Float?
+  thighLeftCm   Float?
+  thighRightCm  Float?
+  calfLeftCm    Float?
+  calfRightCm   Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date(sort: Desc)])
+}
+
+model ProgressPhoto {
+  id            String        @id @default(cuid())
+  userId        String
+  date          DateTime      @db.Date
+  category      PhotoCategory
+  fileUrl       String
+  fileSizeBytes Int
+  weightKg      Float?
+  createdAt     DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ═══════════════════════════════════════════════════════
+// ACADEMIA / ARTÍCULOS
+// ═══════════════════════════════════════════════════════
+
+model Article {
+  id          String          @id @default(cuid())
+  titleEs     String
+  titleEn     String
+  summaryEs   String
+  summaryEn   String
+  contentEs   String
+  contentEn   String
+  category    ArticleCategory
+  readTimeMin Int
+  publishedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  references ArticleReference[]
+}
+
+model ArticleReference {
+  id        String  @id @default(cuid())
+  articleId String
+  doi       String?
+  title     String
+  authors   String
+  journal   String?
+  year      Int?
+  url       String?
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGROS
+// ═══════════════════════════════════════════════════════
+
+model Achievement {
+  id            String @id @default(cuid())
+  code          String @unique
+  titleEs       String
+  titleEn       String
+  descriptionEs String
+  descriptionEn String
+  iconUrl       String
+  condition     String
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+}
+
+// ═══════════════════════════════════════════════════════
+// SOCIAL / COMPARTIR
+// ═══════════════════════════════════════════════════════
+
+model SharedRoutine {
+  id          String   @id @default(cuid())
+  mesocycleId String
+  code        String   @unique
+  expiresAt   DateTime
+  viewCount   Int      @default(0)
+  importCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  mesocycle Mesocycle @relation(fields: [mesocycleId], references: [id])
+}
+
+// ═══════════════════════════════════════════════════════
+// MRV/MEV CONFIGURACIÓN POR USUARIO
+// ═══════════════════════════════════════════════════════
+
+model UserVolumeLandmark {
+  id          String      @id @default(cuid())
+  userId      String
+  muscleGroup MuscleGroup
+  mev         Int
+  mrv         Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, muscleGroup])
+}
+
+// ═══════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+enum Language {
+  ES
+  EN
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum TrainingObjective {
+  HYPERTROPHY
+  STRENGTH
+  ENDURANCE
+  RECOMPOSITION
+}
+
+enum MesocycleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum MovementPattern {
+  HORIZONTAL_PUSH
+  VERTICAL_PUSH
+  HORIZONTAL_PULL
+  VERTICAL_PULL
+  SQUAT
+  HIP_HINGE
+  CARRY
+  ISOLATION
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREARMS
+  QUADRICEPS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  CORE
+  TRAPS
+}
+
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum EquipmentType {
+  BARBELL
+  DUMBBELL
+  CABLE
+  MACHINE
+  BODYWEIGHT
+  KETTLEBELL
+  BANDS
+  EZ_BAR
+  SMITH_MACHINE
+  PULL_UP_BAR
+  DIP_STATION
+  BENCH
+  LEG_PRESS
+  HACK_SQUAT
+  NONE
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK_AM
+  DINNER
+  SNACK_PM
+}
+
+enum PhotoCategory {
+  FRONT
+  SIDE_RIGHT
+  SIDE_LEFT
+  BACK
+}
+
+enum ArticleCategory {
+  FUNDAMENTALS
+  TRAINING
+  NUTRITION
+  RECOVERY
+  PERIODIZATION
+}
+
+enum FoodSource {
+  API
+  USER
 }

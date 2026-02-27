@@ -1,14 +1,20 @@
 import { GlobalExceptionFilter } from '../../../src/infrastructure/base/filters/global-exception.filter';
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { EntityNotFoundError } from '../../../src/domain/errors/entity-not-found.error';
 import { ConflictError } from '../../../src/domain/errors/conflict.error';
 import { ValidationError } from '../../../src/domain/errors/validation.error';
 import { AuthenticationError } from '../../../src/domain/errors/authentication.error';
 import { AuthorizationError } from '../../../src/domain/errors/authorization.error';
 
+type MockResponse = Pick<Response, 'status' | 'json'> & {
+  status: jest.Mock;
+  json: jest.Mock;
+};
+
 describe('GlobalExceptionFilter', () => {
   let filter: GlobalExceptionFilter;
-  let mockResponse: any;
+  let mockResponse: MockResponse;
   let mockArgumentsHost: ArgumentsHost;
 
   beforeEach(() => {
@@ -16,9 +22,9 @@ describe('GlobalExceptionFilter', () => {
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
-    };
+    } as MockResponse;
 
-    const mockRequest = {
+    const mockRequest: Pick<Request, 'url' | 'method'> = {
       url: '/test',
       method: 'GET',
     };
