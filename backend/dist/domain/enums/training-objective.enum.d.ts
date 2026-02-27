@@ -1,0 +1,6 @@
+export declare enum TrainingObjective {
+    HYPERTROPHY = "HYPERTROPHY",
+    STRENGTH = "STRENGTH",
+    ENDURANCE = "ENDURANCE",
+    RECOMPOSITION = "RECOMPOSITION"
+}

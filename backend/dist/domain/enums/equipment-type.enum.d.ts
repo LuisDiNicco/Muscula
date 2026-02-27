@@ -1,0 +1,11 @@
+export declare enum EquipmentType {
+    BARBELL = "BARBELL",
+    DUMBBELL = "DUMBBELL",
+    MACHINE = "MACHINE",
+    CABLE = "CABLE",
+    BODYWEIGHT = "BODYWEIGHT",
+    KETTLEBELL = "KETTLEBELL",
+    BAND = "BAND",
+    SMITH_MACHINE = "SMITH_MACHINE",
+    OTHER = "OTHER"
+}
