@@ -1,5 +1,6 @@
 export * from './activity-level.enum';
 export * from './article-category.enum';
+export * from './body-mode.enum';
 export * from './difficulty-level.enum';
 export * from './equipment-type.enum';
 export * from './experience-level.enum';
