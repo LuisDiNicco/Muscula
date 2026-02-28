@@ -91,6 +91,12 @@ export interface ITrainingSessionRepository {
     sessionId: string,
     exerciseId: string,
   ): Promise<void>;
+  substituteExercise(
+    userId: string,
+    sessionId: string,
+    oldExerciseId: string,
+    newExerciseId: string,
+  ): Promise<void>;
   addSet(
     userId: string,
     sessionId: string,

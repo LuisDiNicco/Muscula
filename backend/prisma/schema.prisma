@@ -51,6 +51,7 @@ model UserPreferences {
   unitSystem           UnitSystem @default(METRIC)
   language             Language   @default(ES)
   theme                Theme      @default(DARK)
+  bodyMode             BodyMode   @default(MAINTENANCE)
   restTimeCompoundSec  Int        @default(180)
   restTimeIsolationSec Int        @default(90)
   restAlertBeforeSec   Int        @default(30)
@@ -654,4 +655,11 @@ enum ArticleCategory {
 enum FoodSource {
   API
   USER
+}
+
+enum BodyMode {
+  BULK
+  CUT
+  MAINTENANCE
+  RECOMPOSITION
 }

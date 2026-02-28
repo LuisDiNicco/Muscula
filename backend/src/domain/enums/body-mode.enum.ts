@@ -1,0 +1,6 @@
+export enum BodyMode {
+  BULK = 'BULK',
+  CUT = 'CUT',
+  MAINTENANCE = 'MAINTENANCE',
+  RECOMPOSITION = 'RECOMPOSITION',
+}

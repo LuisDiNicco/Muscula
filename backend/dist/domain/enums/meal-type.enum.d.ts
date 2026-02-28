@@ -1,8 +1,0 @@
-export declare enum MealType {
-    BREAKFAST = "BREAKFAST",
-    LUNCH = "LUNCH",
-    SNACK = "SNACK",
-    DINNER = "DINNER",
-    PRE_WORKOUT = "PRE_WORKOUT",
-    POST_WORKOUT = "POST_WORKOUT"
-}
