@@ -3,7 +3,7 @@
 **Last update:** 2026-02-28
 **Source of truth:** `docs/05_Implementation_Plan.md`
 
-**Checkpoint:** BE-7 backend funcional cerrada. BE-8 backend iniciada en rama dedicada desde `develop` con slice funcional de Academia + Routine Sharing (seed mínimo, endpoints públicos/privados y tests).
+**Checkpoint:** BE-7 backend funcional cerrada. BE-8 backend en progreso con slices funcionales de Academia + Routine Sharing + Achievements (API + evaluación por eventos + tests).
 
 ## Backend Phases
 
@@ -98,8 +98,17 @@
     - unit: `article.service.spec.ts`, `routine-sharing.service.spec.ts`
     - integration/e2e: `academy-sharing.e2e-spec.ts`
   - Corrección de consistencia de dominio aplicada: enum `ArticleCategory` alineado con `schema.prisma` y documentación (`FUNDAMENTALS`, `TRAINING`, `NUTRITION`, `RECOVERY`, `PERIODIZATION`).
+  - Sistema de logros implementado:
+    - Application interface + Prisma repository: `IAchievementRepository`, `PrismaAchievementRepository`.
+    - Application service: `AchievementService` con `getAchievements` y `evaluateAchievements(event)`.
+    - API: `GET /achievements`.
+    - Integración de eventos: evaluación automática tras `SESSION_COMPLETED`, `MESOCYCLE_COMPLETED`, `NUTRITION_LOGGED`, `WEIGHT_LOGGED`, `PROGRESS_PHOTO_UPLOADED`.
+    - Wiring completado: `AchievementPersistenceModule` + `AchievementModule` (con export de servicio para consumo cross-module).
+  - Tests añadidos para logros:
+    - unit: `achievement.service.spec.ts`
+    - integration/e2e: `achievements.e2e-spec.ts`
 - **Current pending in BE-8:**
-  - Completar sub-bloques restantes de la fase: Import/Export full, Logros automáticos de negocio y reglas de desbloqueo.
+  - Completar sub-bloques restantes de la fase: Import/Export full y trigger automático de `FIRST_PR` desde evento real de PR.
 
 ## Drift / Technical Debt Log
 
@@ -158,4 +167,10 @@
 - 2026-02-28: `npm run lint` ✅ (post slice BE-8 academy + sharing + seed + tests).
 - 2026-02-28: `npm run test` ✅ (18 suites, 78 tests).
 - 2026-02-28: `npm run test:e2e` ✅ (8 suites, 46 tests).
+- 2026-02-28: `npm run build` ✅.
+- 2026-02-28: `npm run test -- test/unit/services/achievement.service.spec.ts test/unit/services/nutrition.service.spec.ts` ✅.
+- 2026-02-28: `npm run test:e2e -- test/integration/achievements.e2e-spec.ts` ✅.
+- 2026-02-28: `npm run lint` ✅ (post slice BE-8 achievements + event integration).
+- 2026-02-28: `npm run test` ✅ (19 suites, 83 tests).
+- 2026-02-28: `npm run test:e2e` ✅ (9 suites, 48 tests).
 - 2026-02-28: `npm run build` ✅.

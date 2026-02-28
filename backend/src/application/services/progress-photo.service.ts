@@ -10,6 +10,7 @@ import {
 } from '../interfaces/progress-photo-repository.interface';
 import { PhotoCategory } from '../../domain/enums';
 import { EntityNotFoundError } from '../../domain/errors/entity-not-found.error';
+import { AchievementService } from './achievement.service';
 
 @Injectable()
 export class ProgressPhotoService {
@@ -18,6 +19,7 @@ export class ProgressPhotoService {
     private readonly progressPhotoRepository: IProgressPhotoRepository,
     @Inject(FILE_STORAGE_SERVICE)
     private readonly fileStorageService: IFileStorageService,
+    private readonly achievementService: AchievementService,
   ) {}
 
   async uploadPhoto(
@@ -37,6 +39,11 @@ export class ProgressPhotoService {
       date,
       storagePath: uploadedPath,
     });
+
+    await this.achievementService.evaluateAchievements(
+      userId,
+      'PROGRESS_PHOTO_UPLOADED',
+    );
 
     return {
       photoId: created.id,

@@ -17,6 +17,7 @@ import { NutritionModule } from './infrastructure/primary-adapters/nutrition.mod
 import { AnalyticsModule } from './infrastructure/primary-adapters/analytics.module';
 import { TrainingModule } from './infrastructure/primary-adapters/training.module';
 import { AcademySharingModule } from './infrastructure/primary-adapters/academy-sharing.module';
+import { AchievementModule } from './infrastructure/primary-adapters/achievement.module';
 import { PrismaModule } from './infrastructure/secondary-adapters/database/prisma/prisma.module';
 
 @Module({
@@ -41,6 +42,7 @@ import { PrismaModule } from './infrastructure/secondary-adapters/database/prism
     NutritionModule,
     AnalyticsModule,
     AcademySharingModule,
+    AchievementModule,
   ],
   controllers: [HealthController],
   providers: [

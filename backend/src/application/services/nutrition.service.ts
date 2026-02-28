@@ -17,6 +17,7 @@ import { BodyMode, MealType } from '../../domain/enums';
 import { DailyNutrition } from '../../domain/entities/daily-nutrition.value-object';
 import { EntityNotFoundError } from '../../domain/errors/entity-not-found.error';
 import { ValidationError } from '../../domain/errors/validation.error';
+import { AchievementService } from './achievement.service';
 import { TdeeCalculatorService } from './tdee-calculator.service';
 
 export type DailyMacroTargets = {
@@ -62,6 +63,7 @@ export class NutritionService {
     @Inject(FOOD_API_CLIENT)
     private readonly foodApiClient: IFoodApiClient,
     private readonly tdeeCalculatorService: TdeeCalculatorService,
+    private readonly achievementService: AchievementService,
   ) {}
 
   async getDailyNutrition(
@@ -112,6 +114,10 @@ export class NutritionService {
     input: AddFoodEntryInput,
   ): Promise<void> {
     await this.nutritionRepository.addFoodEntry(userId, mealId, input);
+    await this.achievementService.evaluateAchievements(
+      userId,
+      'NUTRITION_LOGGED',
+    );
   }
 
   async deleteFoodEntry(userId: string, entryId: string): Promise<void> {
