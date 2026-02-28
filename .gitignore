@@ -3,6 +3,7 @@
 Thumbs.db
 
 # Local assistant/runtime artifacts
+.vscode/
 .agent/
 
 # Backend artifacts (safe fallback even with backend/.gitignore)

@@ -45,7 +45,7 @@
   - Integration tests added for sessions flow: start, active session, list, detail, readiness, complete, weight suggestion (with/without history), warmup generation, substitution flow, completed-session edge case.
 
 ### BE-6 — Nutrition and Body Composition
-- **Status:** 🟡 In progress
+- **Status:** ✅ Done
 - **Completed in this phase:**
   - Domain enum implemented: `BodyMode`.
   - Domain entities/value object implemented: `Food`, `Meal`, `FoodEntry`, `BodyMetric`, `ProgressPhoto`, `DailyNutrition`.
@@ -111,3 +111,4 @@
 - 2026-02-28: `npm test` ✅ (14 suites, 61 tests).
 - 2026-02-28: `npm run test:e2e` ✅ (6 suites, 30 tests).
 - 2026-02-28: `npm run build` ✅ (post integración storage).
+- 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (auditoría tech lead final, estado PR-ready).
