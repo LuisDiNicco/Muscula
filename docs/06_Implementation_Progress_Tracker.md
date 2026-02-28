@@ -3,7 +3,7 @@
 **Last update:** 2026-02-28
 **Source of truth:** `docs/05_Implementation_Plan.md`
 
-**Checkpoint:** BE-6 backend cerrada al 100%. BE-7 backend iniciada en rama dedicada desde `develop` con primer slice funcional de analíticas (volumen semanal/histórico + chequeo de deload).
+**Checkpoint:** BE-7 backend funcional cerrada. BE-8 backend iniciada en rama dedicada desde `develop` con slice funcional de Academia + Routine Sharing (seed mínimo, endpoints públicos/privados y tests).
 
 ## Backend Phases
 
@@ -63,7 +63,7 @@
   - No pendientes críticos de backend detectados en esta fase.
 
 ### BE-7 — Analytics and Dashboard
-- **Status:** 🟡 In progress
+- **Status:** ✅ Done
 - **Completed in this phase (initial slice):**
   - Application interface implemented: `IAnalyticsRepository`.
   - Application services implemented: `VolumeTrackerService` (volumen semanal + historial con cache in-memory TTL 5 minutos) y `AnalyticsService.checkDeload` (volumen MRV, readiness y tendencia de 1RM semanal).
@@ -77,7 +77,29 @@
   - `PrismaSessionRepository` extendido con queries pesadas para trends/PRs/correlaciones y snapshot de heatmap.
   - Tests fortalecidos: unit con más escenarios y e2e con validación de query params obligatorios y endpoints nuevos.
 - **Current pending in BE-7:**
-  - Validar y ajustar exactitud fina de señales de recuperación/heatmap y correlaciones con datos reales de staging para calibración final.
+  - No pendientes críticos de backend detectados en esta fase.
+
+### BE-8 — Import/Export, Sharing, Achievements and Academy
+- **Status:** 🟡 In progress
+- **Completed in this phase (current slice):**
+  - Application interfaces implemented: `IArticleRepository`, `IRoutineSharingRepository`.
+  - Application services implemented: `ArticleService`, `RoutineSharingService`.
+  - Infrastructure repositories implemented: `PrismaArticleRepository`, `PrismaRoutineSharingRepository`.
+  - API layer implemented: `AcademyController` y `RoutineSharingController` con endpoints:
+    - `GET /academy/articles`
+    - `GET /academy/articles/:id`
+    - `POST /sharing/mesocycles/:mesocycleId`
+    - `GET /sharing/:code` (public)
+    - `POST /sharing/:code/import`
+  - DTOs de request/response añadidos para academia y sharing, con validación de paginación.
+  - Seed ampliado con 6 artículos base de academia + referencias bibliográficas mínimas.
+  - Wiring completado: `AcademySharingPersistenceModule` + `AcademySharingModule` registrado en `AppModule`.
+  - Tests added:
+    - unit: `article.service.spec.ts`, `routine-sharing.service.spec.ts`
+    - integration/e2e: `academy-sharing.e2e-spec.ts`
+  - Corrección de consistencia de dominio aplicada: enum `ArticleCategory` alineado con `schema.prisma` y documentación (`FUNDAMENTALS`, `TRAINING`, `NUTRITION`, `RECOVERY`, `PERIODIZATION`).
+- **Current pending in BE-8:**
+  - Completar sub-bloques restantes de la fase: Import/Export full, Logros automáticos de negocio y reglas de desbloqueo.
 
 ## Drift / Technical Debt Log
 
@@ -131,3 +153,9 @@
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (auditoría tech lead final, estado PR-ready).
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (inicio BE-7 analytics slice: volume tracker + deload check + endpoints + tests).
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (BE-7 extended slice: heatmap + strength + tonnage + PRs + correlations + tests robustos).
+- 2026-02-28: `npm run test -- test/unit/services/article.service.spec.ts test/unit/services/routine-sharing.service.spec.ts` ✅.
+- 2026-02-28: `npm run test:e2e -- test/integration/academy-sharing.e2e-spec.ts` ✅.
+- 2026-02-28: `npm run lint` ✅ (post slice BE-8 academy + sharing + seed + tests).
+- 2026-02-28: `npm run test` ✅ (18 suites, 78 tests).
+- 2026-02-28: `npm run test:e2e` ✅ (8 suites, 46 tests).
+- 2026-02-28: `npm run build` ✅.
