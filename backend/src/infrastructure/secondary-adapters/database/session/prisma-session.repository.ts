@@ -10,7 +10,7 @@ import {
   UpdateSetInput,
 } from '../../../../application/interfaces/training-session-repository.interface';
 import { SessionEntity } from '../../../../domain/entities/session.entity';
-import { SessionStatus } from '../../../../domain/enums';
+import { MuscleGroup, SessionStatus } from '../../../../domain/enums';
 import { EquipmentType } from '../../../../domain/enums/equipment-type.enum';
 import { MovementPattern } from '../../../../domain/enums/movement-pattern.enum';
 import { EntityNotFoundError } from '../../../../domain/errors/entity-not-found.error';
@@ -19,6 +19,18 @@ import {
   ISessionHistoryRepository,
   LastSessionPerformance,
 } from '../../../../application/interfaces/session-history-repository.interface';
+import {
+  BestSetRecord,
+  CorrelationPoint,
+  IAnalyticsRepository,
+  MuscleHeatmapSnapshot,
+  MuscleOneRmWeeklyPoint,
+  MuscleVolumeSnapshot,
+  OneRmPoint,
+  SessionVolumePoint,
+  TonnagePoint,
+  VolumeLandmark,
+} from '../../../../application/interfaces/analytics-repository.interface';
 
 type SessionRow = {
   id: string;
@@ -38,7 +50,10 @@ type SessionRow = {
 
 @Injectable()
 export class PrismaSessionRepository
-  implements ITrainingSessionRepository, ISessionHistoryRepository
+  implements
+    ITrainingSessionRepository,
+    ISessionHistoryRepository,
+    IAnalyticsRepository
 {
   constructor(private readonly prismaService: PrismaService) {}
 
@@ -499,6 +514,462 @@ export class PrismaSessionRepository
       equipmentType: row.sessionExercise.exercise
         .equipmentType as EquipmentType,
     };
+  }
+
+  async getEffectiveVolumeByMuscleGroup(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<MuscleVolumeSnapshot[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ muscleGroup: string; effectiveSets: number }>
+    >`
+      SELECT
+        em."muscleGroup"::text as "muscleGroup",
+        COUNT(*)::int as "effectiveSets"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "ExerciseMuscle" em ON em."primaryForId" = se."exerciseId"
+      WHERE s."userId" = ${userId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."rir" <= 4
+      GROUP BY em."muscleGroup"
+    `;
+
+    return rows.map((row) => ({
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      effectiveSets: row.effectiveSets,
+    }));
+  }
+
+  async getUserVolumeLandmarks(userId: string): Promise<VolumeLandmark[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ muscleGroup: string; mev: number; mrv: number }>
+    >`
+      SELECT
+        uvl."muscleGroup"::text as "muscleGroup",
+        uvl."mev" as "mev",
+        uvl."mrv" as "mrv"
+      FROM "UserVolumeLandmark" uvl
+      WHERE uvl."userId" = ${userId}
+    `;
+
+    return rows.map((row) => ({
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      mev: row.mev,
+      mrv: row.mrv,
+    }));
+  }
+
+  async getAverageReadiness(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number | null> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ avgReadiness: number | null }>
+    >`
+      SELECT
+        AVG(rs."totalScore")::float as "avgReadiness"
+      FROM "ReadinessScore" rs
+      INNER JOIN "Session" s ON s.id = rs."sessionId"
+      WHERE s."userId" = ${userId}
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND s."deletedAt" IS NULL
+    `;
+
+    const average = rows[0]?.avgReadiness ?? null;
+
+    if (average === null) {
+      return null;
+    }
+
+    return Number(average.toFixed(2));
+  }
+
+  async getWeeklyEstimatedOneRmByMuscleGroup(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<MuscleOneRmWeeklyPoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{
+        weekStart: Date;
+        muscleGroup: string;
+        avgEstimatedOneRm: number;
+      }>
+    >`
+      SELECT
+        DATE_TRUNC('week', s."startedAt")::date as "weekStart",
+        em."muscleGroup"::text as "muscleGroup",
+        AVG(
+          (
+            (ws."weightKg" * (1 + ws."reps"::float / 30)) +
+            (ws."weightKg" * (36 / (37 - ws."reps"::float)))
+          ) / 2
+        )::float as "avgEstimatedOneRm"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "ExerciseMuscle" em ON em."primaryForId" = se."exerciseId"
+      WHERE s."userId" = ${userId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."rir" <= 4
+        AND ws."reps" BETWEEN 1 AND 10
+      GROUP BY DATE_TRUNC('week', s."startedAt")::date, em."muscleGroup"
+      ORDER BY DATE_TRUNC('week', s."startedAt")::date ASC
+    `;
+
+    return rows.map((row) => ({
+      weekStart: new Date(row.weekStart),
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      avgEstimatedOneRm: Number(row.avgEstimatedOneRm.toFixed(2)),
+    }));
+  }
+
+  async getMuscleHeatmapSnapshot(
+    userId: string,
+    weekStart: Date,
+    weekEnd: Date,
+  ): Promise<MuscleHeatmapSnapshot[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{
+        muscleGroup: string;
+        lastTrainedAt: Date | null;
+        effectiveSetsThisWeek: number;
+      }>
+    >`
+      SELECT
+        em."muscleGroup"::text as "muscleGroup",
+        MAX(s."startedAt") as "lastTrainedAt",
+        COUNT(*) FILTER (
+          WHERE s."startedAt" >= ${weekStart}
+            AND s."startedAt" < ${weekEnd}
+            AND ws."rir" <= 4
+        )::int as "effectiveSetsThisWeek"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "ExerciseMuscle" em ON em."primaryForId" = se."exerciseId"
+      WHERE s."userId" = ${userId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND ws."completed" = true
+        AND ws."skipped" = false
+      GROUP BY em."muscleGroup"
+    `;
+
+    return rows.map((row) => ({
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      lastTrainedAt:
+        row.lastTrainedAt === null ? null : new Date(row.lastTrainedAt),
+      effectiveSetsThisWeek: row.effectiveSetsThisWeek,
+    }));
+  }
+
+  async getStrengthTrend(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<OneRmPoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ date: Date; estimatedOneRm: number }>
+    >`
+      SELECT
+        DATE_TRUNC('day', s."startedAt")::date as "date",
+        AVG(
+          (
+            (ws."weightKg" * (1 + ws."reps"::float / 30)) +
+            (ws."weightKg" * (36 / (37 - ws."reps"::float)))
+          ) / 2
+        )::float as "estimatedOneRm"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."reps" BETWEEN 1 AND 10
+      GROUP BY DATE_TRUNC('day', s."startedAt")::date
+      ORDER BY DATE_TRUNC('day', s."startedAt")::date ASC
+    `;
+
+    return rows.map((row) => ({
+      date: new Date(row.date),
+      estimatedOneRm: Number(row.estimatedOneRm.toFixed(2)),
+    }));
+  }
+
+  async getTonnageTrend(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<TonnagePoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ date: Date; tonnage: number }>
+    >`
+      SELECT
+        DATE_TRUNC('day', s."startedAt")::date as "date",
+        SUM(ws."weightKg" * ws."reps")::float as "tonnage"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+      GROUP BY DATE_TRUNC('day', s."startedAt")::date
+      ORDER BY DATE_TRUNC('day', s."startedAt")::date ASC
+    `;
+
+    return rows.map((row) => ({
+      date: new Date(row.date),
+      tonnage: Number(row.tonnage.toFixed(2)),
+    }));
+  }
+
+  async getBestOneRm(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number | null> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ bestOneRm: number | null }>
+    >`
+      SELECT
+        MAX(
+          (
+            (ws."weightKg" * (1 + ws."reps"::float / 30)) +
+            (ws."weightKg" * (36 / (37 - ws."reps"::float)))
+          ) / 2
+        )::float as "bestOneRm"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."reps" BETWEEN 1 AND 10
+    `;
+
+    const value = rows[0]?.bestOneRm ?? null;
+    return value === null ? null : Number(value.toFixed(2));
+  }
+
+  async getBestSet(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<BestSetRecord | null> {
+    const row = await this.prismaService.$queryRaw<
+      Array<{
+        sessionId: string;
+        date: Date;
+        weightKg: number;
+        reps: number;
+        rir: number;
+      }>
+    >`
+      SELECT
+        s.id as "sessionId",
+        DATE_TRUNC('day', s."startedAt")::date as "date",
+        ws."weightKg" as "weightKg",
+        ws."reps" as "reps",
+        ws."rir" as "rir"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+      ORDER BY ws."weightKg" DESC, ws."reps" DESC, ws."rir" ASC
+      LIMIT 1
+    `;
+
+    const best = row[0];
+    if (best === undefined) {
+      return null;
+    }
+
+    return {
+      sessionId: best.sessionId,
+      date: new Date(best.date),
+      weightKg: best.weightKg,
+      reps: best.reps,
+      rir: best.rir,
+    };
+  }
+
+  async getBestSessionVolume(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<SessionVolumePoint | null> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ sessionId: string; date: Date; tonnage: number }>
+    >`
+      SELECT
+        s.id as "sessionId",
+        DATE_TRUNC('day', s."startedAt")::date as "date",
+        SUM(ws."weightKg" * ws."reps")::float as "tonnage"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+      GROUP BY s.id, DATE_TRUNC('day', s."startedAt")::date
+      ORDER BY "tonnage" DESC
+      LIMIT 1
+    `;
+
+    const best = rows[0];
+    if (best === undefined) {
+      return null;
+    }
+
+    return {
+      sessionId: best.sessionId,
+      date: new Date(best.date),
+      tonnage: Number(best.tonnage.toFixed(2)),
+    };
+  }
+
+  async getBodyWeightVsOneRmPoints(
+    userId: string,
+    exerciseId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<CorrelationPoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ date: Date; bodyWeight: number; estimatedOneRm: number }>
+    >`
+      SELECT
+        DATE_TRUNC('day', s."startedAt")::date as "date",
+        bm."weightKg"::float as "bodyWeight",
+        AVG(
+          (
+            (ws."weightKg" * (1 + ws."reps"::float / 30)) +
+            (ws."weightKg" * (36 / (37 - ws."reps"::float)))
+          ) / 2
+        )::float as "estimatedOneRm"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "BodyMetric" bm ON bm."userId" = s."userId"
+        AND bm."date" = DATE_TRUNC('day', s."startedAt")::date
+      WHERE s."userId" = ${userId}
+        AND se."exerciseId" = ${exerciseId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND bm."weightKg" IS NOT NULL
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."reps" BETWEEN 1 AND 10
+      GROUP BY DATE_TRUNC('day', s."startedAt")::date, bm."weightKg"
+      ORDER BY DATE_TRUNC('day', s."startedAt")::date ASC
+    `;
+
+    return rows.map((row) => ({
+      x: Number(row.bodyWeight.toFixed(2)),
+      y: Number(row.estimatedOneRm.toFixed(2)),
+      date: new Date(row.date),
+    }));
+  }
+
+  async getWeeklyVolumeVsReadinessPoints(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<CorrelationPoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ weekStart: Date; effectiveSets: number; avgReadiness: number }>
+    >`
+      WITH weekly_volume AS (
+        SELECT
+          DATE_TRUNC('week', s."startedAt")::date as "weekStart",
+          COUNT(*) FILTER (WHERE ws."rir" <= 4)::int as "effectiveSets"
+        FROM "WorkingSet" ws
+        INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+        INNER JOIN "Session" s ON s.id = se."sessionId"
+        WHERE s."userId" = ${userId}
+          AND s."status" = 'COMPLETED'
+          AND s."deletedAt" IS NULL
+          AND s."startedAt" >= ${startDate}
+          AND s."startedAt" < ${endDate}
+          AND ws."completed" = true
+          AND ws."skipped" = false
+        GROUP BY DATE_TRUNC('week', s."startedAt")::date
+      ),
+      weekly_readiness AS (
+        SELECT
+          DATE_TRUNC('week', s."startedAt")::date as "weekStart",
+          AVG(rs."totalScore")::float as "avgReadiness"
+        FROM "ReadinessScore" rs
+        INNER JOIN "Session" s ON s.id = rs."sessionId"
+        WHERE s."userId" = ${userId}
+          AND s."startedAt" >= ${startDate}
+          AND s."startedAt" < ${endDate}
+          AND s."deletedAt" IS NULL
+        GROUP BY DATE_TRUNC('week', s."startedAt")::date
+      )
+      SELECT
+        wv."weekStart" as "weekStart",
+        wv."effectiveSets" as "effectiveSets",
+        wr."avgReadiness" as "avgReadiness"
+      FROM weekly_volume wv
+      INNER JOIN weekly_readiness wr ON wr."weekStart" = wv."weekStart"
+      ORDER BY wv."weekStart" ASC
+    `;
+
+    return rows.map((row) => ({
+      x: row.effectiveSets,
+      y: Number(row.avgReadiness.toFixed(2)),
+      date: new Date(row.weekStart),
+    }));
   }
 
   private async assertSessionOwnership(
