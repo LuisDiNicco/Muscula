@@ -3,7 +3,7 @@
 **Last update:** 2026-02-28
 **Source of truth:** `docs/05_Implementation_Plan.md`
 
-**Checkpoint:** BE-7 backend funcional cerrada. BE-8 backend en progreso con slices funcionales de Academia + Routine Sharing + Achievements (API + evaluación por eventos + tests).
+**Checkpoint:** BE-7 backend funcional cerrada. BE-8 backend en progreso con slices funcionales de Academia + Routine Sharing + Achievements + Import/Export (API + evaluación por eventos + tests).
 
 ## Backend Phases
 
@@ -107,8 +107,17 @@
   - Tests añadidos para logros:
     - unit: `achievement.service.spec.ts`
     - integration/e2e: `achievements.e2e-spec.ts`
+  - Import/Export implementado:
+    - Application interface + Prisma repository: `IImportExportRepository`, `PrismaImportExportRepository`.
+    - Application service: `ImportExportService` con `exportData`, `previewImport`, `confirmImport`.
+    - API de datos: `POST /data/export`, `POST /data/import/preview`, `POST /data/import/confirm`.
+    - Exportación real ZIP con CSVs (`sessions.csv`, `nutrition.csv`, `body-metrics.csv`) y URL temporal por storage.
+    - Import preview/confirm para fuentes `STRONG` y `HEVY`, con mapeo difuso de ejercicios y creación opcional de ejercicios custom.
+  - Tests añadidos para import/export:
+    - unit: `import-export.service.spec.ts`
+    - integration/e2e: `import-export.e2e-spec.ts`
 - **Current pending in BE-8:**
-  - Completar sub-bloques restantes de la fase: Import/Export full y trigger automático de `FIRST_PR` desde evento real de PR.
+  - Completar sub-bloques restantes de la fase: trigger automático de `FIRST_PR` desde evento real de PR y endurecimiento de fuzzy matching SQL (`pg_trgm`) para imports masivos.
 
 ## Drift / Technical Debt Log
 
@@ -173,4 +182,10 @@
 - 2026-02-28: `npm run lint` ✅ (post slice BE-8 achievements + event integration).
 - 2026-02-28: `npm run test` ✅ (19 suites, 83 tests).
 - 2026-02-28: `npm run test:e2e` ✅ (9 suites, 48 tests).
+- 2026-02-28: `npm run build` ✅.
+- 2026-02-28: `npm run test -- test/unit/services/import-export.service.spec.ts` ✅.
+- 2026-02-28: `npm run test:e2e -- test/integration/import-export.e2e-spec.ts` ✅.
+- 2026-02-28: `npm run lint` ✅ (post slice BE-8 import/export).
+- 2026-02-28: `npm run test` ✅ (20 suites, 86 tests).
+- 2026-02-28: `npm run test:e2e` ✅ (10 suites, 51 tests).
 - 2026-02-28: `npm run build` ✅.
