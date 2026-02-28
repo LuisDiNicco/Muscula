@@ -1,6 +1,7 @@
 import { IFoodApiClient } from '../../../src/application/interfaces/food-api-client.interface';
 import { INutritionRepository } from '../../../src/application/interfaces/nutrition-repository.interface';
 import { IUserRepository } from '../../../src/application/interfaces/user-repository.interface';
+import { AchievementService } from '../../../src/application/services/achievement.service';
 import { NutritionService } from '../../../src/application/services/nutrition.service';
 import { TdeeCalculatorService } from '../../../src/application/services/tdee-calculator.service';
 import { FoodEntryEntity } from '../../../src/domain/entities/food-entry.entity';
@@ -41,6 +42,7 @@ describe('NutritionService', () => {
   let userRepository: jest.Mocked<IUserRepository>;
   let foodApiClient: jest.Mocked<IFoodApiClient>;
   let tdeeCalculatorService: jest.Mocked<TdeeCalculatorService>;
+  let achievementService: jest.Mocked<AchievementService>;
   let service: NutritionService;
 
   beforeEach(() => {
@@ -81,11 +83,17 @@ describe('NutritionService', () => {
       getStaticTdee: jest.fn(),
     } as unknown as jest.Mocked<TdeeCalculatorService>;
 
+    achievementService = {
+      getAchievements: jest.fn(),
+      evaluateAchievements: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<AchievementService>;
+
     service = new NutritionService(
       nutritionRepository,
       userRepository,
       foodApiClient,
       tdeeCalculatorService,
+      achievementService,
     );
   });
 
@@ -145,5 +153,21 @@ describe('NutritionService', () => {
     expect(result.total).toBe(0);
     expect(foodApiClient.search.mock.calls[0]).toEqual(['rice', 1, 20]);
     expect(nutritionRepository.cacheApiFoods.mock.calls).toHaveLength(1);
+  });
+
+  it('evaluates achievements after adding food entry', async () => {
+    await service.addFoodEntry('user-1', 'meal-1', {
+      grams: 100,
+      calories: 120,
+      protein: 10,
+      carbs: 12,
+      fat: 3,
+      foodId: 'food-1',
+    });
+
+    expect(achievementService.evaluateAchievements.mock.calls[0]).toEqual([
+      'user-1',
+      'NUTRITION_LOGGED',
+    ]);
   });
 });

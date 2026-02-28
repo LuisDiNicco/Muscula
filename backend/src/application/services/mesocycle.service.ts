@@ -9,12 +9,14 @@ import {
 import { MesocycleEntity } from '../../domain/entities/mesocycle.entity';
 import { EntityNotFoundError } from '../../domain/errors/entity-not-found.error';
 import { ValidationError } from '../../domain/errors/validation.error';
+import { AchievementService } from './achievement.service';
 
 @Injectable()
 export class MesocycleService {
   constructor(
     @Inject(MESOCYCLE_REPOSITORY)
     private readonly mesocycleRepository: IMesocycleRepository,
+    private readonly achievementService: AchievementService,
   ) {}
 
   async listMesocycles(
@@ -113,6 +115,10 @@ export class MesocycleService {
     }
 
     await this.mesocycleRepository.complete(userId, id);
+    await this.achievementService.evaluateAchievements(
+      userId,
+      'MESOCYCLE_COMPLETED',
+    );
   }
 
   private assertMesocycleRules(

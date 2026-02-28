@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { SessionEntity } from '../../domain/entities/session.entity';
 import { EntityNotFoundError } from '../../domain/errors/entity-not-found.error';
 import { ValidationError } from '../../domain/errors/validation.error';
+import { AchievementService } from './achievement.service';
 import { TRAINING_SESSION_REPOSITORY } from '../interfaces/training-session-repository.interface';
 import type {
   AddSetInput,
@@ -17,6 +18,7 @@ export class TrainingSessionService {
   constructor(
     @Inject(TRAINING_SESSION_REPOSITORY)
     private readonly sessionRepository: ITrainingSessionRepository,
+    private readonly achievementService: AchievementService,
   ) {}
 
   async startSession(input: StartSessionInput): Promise<SessionEntity> {
@@ -113,6 +115,11 @@ export class TrainingSessionService {
       userId,
       sessionId,
       notes?.trim(),
+    );
+
+    await this.achievementService.evaluateAchievements(
+      userId,
+      'SESSION_COMPLETED',
     );
   }
 

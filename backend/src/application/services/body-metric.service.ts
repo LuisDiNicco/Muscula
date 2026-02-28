@@ -4,6 +4,7 @@ import {
   type IBodyMetricRepository,
   RecordBodyMetricInput,
 } from '../interfaces/body-metric-repository.interface';
+import { AchievementService } from './achievement.service';
 
 export type WeightTrendPoint = {
   date: Date;
@@ -16,6 +17,7 @@ export class BodyMetricService {
   constructor(
     @Inject(BODY_METRIC_REPOSITORY)
     private readonly bodyMetricRepository: IBodyMetricRepository,
+    private readonly achievementService: AchievementService,
   ) {}
 
   async recordMetrics(
@@ -23,6 +25,13 @@ export class BodyMetricService {
     input: RecordBodyMetricInput,
   ): Promise<void> {
     await this.bodyMetricRepository.record(userId, input);
+
+    if (input.weightKg !== undefined) {
+      await this.achievementService.evaluateAchievements(
+        userId,
+        'WEIGHT_LOGGED',
+      );
+    }
   }
 
   async getMetrics(
