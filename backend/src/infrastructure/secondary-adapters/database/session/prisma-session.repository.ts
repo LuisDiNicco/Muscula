@@ -14,6 +14,7 @@ import { SessionStatus } from '../../../../domain/enums';
 import { EquipmentType } from '../../../../domain/enums/equipment-type.enum';
 import { MovementPattern } from '../../../../domain/enums/movement-pattern.enum';
 import { EntityNotFoundError } from '../../../../domain/errors/entity-not-found.error';
+import { ValidationError } from '../../../../domain/errors/validation.error';
 import {
   ISessionHistoryRepository,
   LastSessionPerformance,
@@ -236,6 +237,40 @@ export class PrismaSessionRepository
     });
   }
 
+  async substituteExercise(
+    userId: string,
+    sessionId: string,
+    oldExerciseId: string,
+    newExerciseId: string,
+  ): Promise<void> {
+    await this.assertSessionOwnership(userId, sessionId);
+
+    const sessionExercise = await this.prismaService.sessionExercise.findFirst({
+      where: {
+        sessionId,
+        exerciseId: oldExerciseId,
+      },
+      orderBy: {
+        exerciseOrder: 'asc',
+      },
+    });
+
+    if (sessionExercise === null) {
+      throw new EntityNotFoundError('SessionExercise', oldExerciseId);
+    }
+
+    await this.prismaService.sessionExercise.update({
+      where: {
+        id: sessionExercise.id,
+      },
+      data: {
+        exerciseId: newExerciseId,
+        originalExerciseId:
+          sessionExercise.originalExerciseId ?? sessionExercise.exerciseId,
+      },
+    });
+  }
+
   async addSet(
     userId: string,
     sessionId: string,
@@ -331,6 +366,10 @@ export class PrismaSessionRepository
     notes?: string,
   ): Promise<void> {
     const session = await this.assertSessionOwnership(userId, sessionId);
+    if (session.status !== SessionStatus.IN_PROGRESS) {
+      throw new ValidationError('Only IN_PROGRESS sessions can be completed');
+    }
+
     const finishedAt = new Date();
     const durationMinutes = Math.max(
       0,
@@ -350,6 +389,10 @@ export class PrismaSessionRepository
 
   async abandonSession(userId: string, sessionId: string): Promise<void> {
     const session = await this.assertSessionOwnership(userId, sessionId);
+    if (session.status !== SessionStatus.IN_PROGRESS) {
+      throw new ValidationError('Only IN_PROGRESS sessions can be abandoned');
+    }
+
     const finishedAt = new Date();
     const durationMinutes = Math.max(
       0,

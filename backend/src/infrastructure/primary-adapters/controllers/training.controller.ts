@@ -11,26 +11,38 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AutoregulationService } from '../../../application/services/autoregulation.service';
+import { ExerciseSubstitutionService } from '../../../application/services/exercise-substitution.service';
 import { ReadinessService } from '../../../application/services/readiness.service';
 import { TrainingSessionService } from '../../../application/services/training-session.service';
+import { WarmupGeneratorService } from '../../../application/services/warmup-generator.service';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../decorators/current-user.decorator';
+import { ExerciseResponseDto } from './dtos/exercise/exercise-response.dto';
 import { AddSetDto } from './dtos/training/add-set.dto';
 import { AddSessionExerciseDto } from './dtos/training/add-session-exercise.dto';
 import { CompleteSessionDto } from './dtos/training/complete-session.dto';
+import { GenerateWarmupDto } from './dtos/training/generate-warmup.dto';
 import { ListSessionsQueryDto } from './dtos/training/list-sessions-query.dto';
 import { RecordReadinessDto } from './dtos/training/record-readiness.dto';
 import { SessionDetailResponseDto } from './dtos/training/session-detail-response.dto';
 import { StartSessionDto } from './dtos/training/start-session.dto';
+import { SubstituteExerciseDto } from './dtos/training/substitute-exercise.dto';
+import { SuggestedWeightResponseDto } from './dtos/training/suggested-weight-response.dto';
+import { SuggestWeightQueryDto } from './dtos/training/suggest-weight-query.dto';
 import { UpdateSetDto } from './dtos/training/update-set.dto';
+import { WarmupSetResponseDto } from './dtos/training/warmup-set-response.dto';
 
 @ApiTags('Training')
 @Controller('training/sessions')
 export class TrainingController {
   constructor(
     private readonly trainingSessionService: TrainingSessionService,
+    private readonly autoregulationService: AutoregulationService,
+    private readonly warmupGeneratorService: WarmupGeneratorService,
+    private readonly exerciseSubstitutionService: ExerciseSubstitutionService,
     private readonly readinessService: ReadinessService,
   ) {}
 
@@ -105,6 +117,79 @@ export class TrainingController {
     );
 
     return SessionDetailResponseDto.fromEntity(detail);
+  }
+
+  @Get(':sessionId/exercises/:exerciseId/suggestion')
+  @ApiOperation({ summary: 'Get suggested work weight for an exercise' })
+  @ApiResponse({ status: 200, type: SuggestedWeightResponseDto })
+  async suggestWeight(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('sessionId') sessionId: string,
+    @Param('exerciseId') exerciseId: string,
+    @Query() query: SuggestWeightQueryDto,
+  ): Promise<SuggestedWeightResponseDto> {
+    await this.trainingSessionService.getSessionDetail(user.id, sessionId);
+
+    const suggestedWeightKg = await this.autoregulationService.suggestWeight(
+      user.id,
+      exerciseId,
+      query.readinessScore,
+    );
+
+    return { suggestedWeightKg };
+  }
+
+  @Post(':sessionId/exercises/:exerciseId/warmup')
+  @ApiOperation({ summary: 'Generate warmup sets for an exercise in session' })
+  @ApiResponse({ status: 201, type: [WarmupSetResponseDto] })
+  async generateWarmup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('sessionId') sessionId: string,
+    @Param('exerciseId') _exerciseId: string,
+    @Body() dto: GenerateWarmupDto,
+  ): Promise<WarmupSetResponseDto[]> {
+    await this.trainingSessionService.getSessionDetail(user.id, sessionId);
+
+    return this.warmupGeneratorService.generateWarmup(
+      dto.workWeightKg,
+      dto.barWeightKg,
+    );
+  }
+
+  @Get(':sessionId/exercises/:exerciseId/substitutes')
+  @ApiOperation({ summary: 'List valid substitutes for a session exercise' })
+  @ApiResponse({ status: 200, type: [ExerciseResponseDto] })
+  async listSubstitutes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('sessionId') sessionId: string,
+    @Param('exerciseId') exerciseId: string,
+  ): Promise<ExerciseResponseDto[]> {
+    await this.trainingSessionService.getSessionDetail(user.id, sessionId);
+    const substitutes = await this.exerciseSubstitutionService.findSubstitutes(
+      exerciseId,
+      user.id,
+    );
+
+    return substitutes.map((exercise) =>
+      ExerciseResponseDto.fromEntity(exercise),
+    );
+  }
+
+  @Post(':sessionId/exercises/:exerciseId/substitute')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Replace a planned exercise by a valid substitute' })
+  async substituteExercise(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('sessionId') sessionId: string,
+    @Param('exerciseId') exerciseId: string,
+    @Body() dto: SubstituteExerciseDto,
+  ): Promise<void> {
+    await this.exerciseSubstitutionService.substituteExercise(
+      user.id,
+      sessionId,
+      exerciseId,
+      dto.newExerciseId,
+    );
   }
 
   @Post(':sessionId/exercises')
