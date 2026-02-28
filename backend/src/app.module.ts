@@ -13,6 +13,7 @@ import { AuthModule } from './infrastructure/primary-adapters/auth.module';
 import { UserModule } from './infrastructure/primary-adapters/user.module';
 import { ExerciseModule } from './infrastructure/primary-adapters/exercise.module';
 import { MesocycleModule } from './infrastructure/primary-adapters/mesocycle.module';
+import { NutritionModule } from './infrastructure/primary-adapters/nutrition.module';
 import { TrainingModule } from './infrastructure/primary-adapters/training.module';
 import { PrismaModule } from './infrastructure/secondary-adapters/database/prisma/prisma.module';
 
@@ -35,6 +36,7 @@ import { PrismaModule } from './infrastructure/secondary-adapters/database/prism
     ExerciseModule,
     MesocycleModule,
     TrainingModule,
+    NutritionModule,
   ],
   controllers: [HealthController],
   providers: [
