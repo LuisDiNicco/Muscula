@@ -1,0 +1,14 @@
+# Monorepo root hygiene
+.DS_Store
+Thumbs.db
+
+# Local assistant/runtime artifacts
+.agent/
+
+# Backend artifacts (safe fallback even with backend/.gitignore)
+backend/node_modules/
+backend/dist/
+backend/coverage/
+backend/.env
+backend/.env.*
+!backend/.env.example
