@@ -138,7 +138,7 @@ Toda la lógica algorítmica del sistema se sustenta en literatura peer-reviewed
 | ID | Punto de Dolor | Cómo se Aborda |
 |---|---|---|
 | PD-13 | Ambigüedad en requisitos | SRS exhaustiva con criterios de aceptación verificables |
-| PD-14 | Ausencia de estándares de código | Reglas de desarrollo en `.agent/development_rules/` con 100% compliance obligatorio |
+| PD-14 | Ausencia de estándares de código | Reglas de desarrollo en `.github/development_rules/` con 100% compliance obligatorio |
 | PD-15 | Desvíos acumulados no detectados | Validación interna al final de cada fase + code review de compliance |
 
 #### STK-05: Propietario
@@ -529,7 +529,7 @@ Toda la lógica algorítmica del sistema se sustenta en literatura peer-reviewed
 
 | Aspecto | Requisito |
 |---|---|
-| **Arquitectura** | Clean/Hexagonal Architecture obligatoria en backend (ver `.agent/development_rules/01_architecture.md`). |
+| **Arquitectura** | Clean/Hexagonal Architecture obligatoria en backend (ver `.github/development_rules/01_architecture.md`). |
 | **Cobertura de tests** | > 80% en application/services y domain/entities. Integration tests para todos los endpoints. |
 | **Código** | TypeScript strict. `any` prohibido. Prettier + ESLint. Conventional Commits. |
 | **Documentación** | Swagger completo para todos los endpoints. Código auto-documentado con nombres expresivos. |

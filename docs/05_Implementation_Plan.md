@@ -2,7 +2,7 @@
 
 **Versión:** 1.0  
 **Fecha:** 2026-02-27  
-**Reglas de desarrollo:** Las definidas en `.agent/development_rules/` se aplican al 100% del código generado. No hay excepciones.
+**Reglas de desarrollo:** Las definidas en `.github/development_rules/` se aplican al 100% del código generado. No hay excepciones.
 
 ---
 
@@ -42,7 +42,7 @@ Cada fase sigue este flujo estricto:
 │     └─ Corregir desvíos antes de avanzar                    │
 │                                                             │
 │  4. CODE REVIEW (100% Compliance)                           │
-│     └─ Verificar CADA regla de .agent/development_rules/    │
+│     └─ Verificar CADA regla de .github/development_rules/   │
 │     └─ Verificar cumplimiento de SRS (criterios aceptación) │
 │     └─ Si compliance < 100% → volver a paso 1 e iterar     │
 │     └─ Si compliance = 100% → aprobar fase                  │
@@ -60,7 +60,7 @@ Cada fase sigue este flujo estricto:
 
 ### 1.2 Reglas de Commits
 
-- **Formato**: Conventional Commits (ver `.agent/development_rules/06_devops_git_testing.md`).
+- **Formato**: Conventional Commits (ver `.github/development_rules/06_devops_git_testing.md`).
 - **Frecuencia**: Un commit por cada funcionalidad atómica completada. NO acumular múltiples funcionalidades en un solo commit.
 - **Mensajes**:
   - `feat: add user registration endpoint` — Nueva funcionalidad.
@@ -70,7 +70,7 @@ Cada fase sigue este flujo estricto:
   - `chore: configure Prisma schema and initial migration` — Config/tooling.
 - **Push por fase**: Al completar cada fase exitosamente (compliance 100%), se hace push.
 
-### 1.3 Reglas de .agent/development_rules/ Aplicables
+### 1.3 Reglas de .github/development_rules/ Aplicables
 
 El código generado DEBE cumplir con TODAS estas reglas sin excepción:
 
