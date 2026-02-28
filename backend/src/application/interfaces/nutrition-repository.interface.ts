@@ -59,6 +59,7 @@ export interface INutritionRepository {
     from: Date,
     to: Date,
   ): Promise<DailyCaloriesDataPoint[]>;
+  cacheApiFoods(foods: FoodEntity[]): Promise<FoodEntity[]>;
   getBodyMode(userId: string): Promise<BodyMode>;
   setBodyMode(userId: string, mode: BodyMode): Promise<BodyMode>;
 }

@@ -155,10 +155,11 @@ export class NutritionService {
       sanitizedPage,
       sanitizedLimit,
     );
+    const cached = await this.nutritionRepository.cacheApiFoods(remote);
 
     return {
-      total: remote.length,
-      data: remote.map((food) => ({
+      total: cached.length,
+      data: cached.map((food) => ({
         id: food.id,
         name: food.name,
         brand: food.brand,
@@ -183,10 +184,13 @@ export class NutritionService {
       return null;
     }
 
+    const cached = await this.nutritionRepository.cacheApiFoods([remote]);
+    const food = cached[0] ?? remote;
+
     return {
-      id: remote.id,
-      name: remote.name,
-      brand: remote.brand,
+      id: food.id,
+      name: food.name,
+      brand: food.brand,
     };
   }
 

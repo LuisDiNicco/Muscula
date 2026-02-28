@@ -3,7 +3,7 @@
 **Last update:** 2026-02-28
 **Source of truth:** `docs/05_Implementation_Plan.md`
 
-**Checkpoint:** BE-5 cerrada al 100%. BE-6 mantiene slice funcional backend y se completó persistencia durable de `bodyMode` por usuario; quedan pendientes solo integraciones reales de API externa de alimentos y storage.
+**Checkpoint:** BE-5 cerrada al 100%. BE-6 backend quedó funcional end-to-end: `bodyMode` durable, Open Food Facts integrado con parseo + validación + cache persistente y storage externo (Supabase) con fallback local.
 
 ## Backend Phases
 
@@ -53,13 +53,14 @@
   - Application interfaces implemented: `INutritionRepository`, `IBodyMetricRepository`, `IProgressPhotoRepository`, `IFoodApiClient`, `IFileStorageService`.
   - Prisma repositories implemented for nutrition, body metrics and progress photos.
   - Application services implemented: `NutritionService`, `TdeeCalculatorService`, `BodyMetricService`, `ProgressPhotoService`.
+  - Integración real de `OpenFoodFactsClient` implementada (search/barcode HTTP + parse/validación de macros) con cache persistente en `Food` (`source = API`).
+  - Integración real de storage implementada con `SupabaseStorageService` (upload comprimido, signed URLs, delete) y fallback a `LocalFileStorageService` por configuración.
   - Controllers/DTOs implemented: `NutritionController` y `BodyMetricController` con endpoints para daily nutrition, meal slots, food entries, food search/barcode/custom, body mode y weight trend.
   - Persistencia durable de `bodyMode` implementada en DB (`UserPreferences.bodyMode`) con migración Prisma y wiring en `PrismaNutritionRepository` + `NutritionService`.
   - Wiring implemented: `NutritionPersistenceModule` + `NutritionModule` registrado en `AppModule`.
   - Tests added: unit (`tdee-calculator.service.spec.ts`, `nutrition.service.spec.ts`) + integration/e2e (`nutrition.e2e-spec.ts`).
 - **Current pending in BE-6:**
-  - Integración real de `OpenFoodFactsClient` (HTTP + parse/validación + cache persistente).
-  - Integración real de `IFileStorageService` (upload/URLs firmadas/delete sobre storage externo).
+  - No pendientes críticos de backend detectados en esta fase.
 
 ## Drift / Technical Debt Log
 
@@ -102,3 +103,11 @@
 - 2026-02-28: `npm test` ✅ (14 suites, 61 tests).
 - 2026-02-28: `npm run test:e2e` ✅ (6 suites, 30 tests).
 - 2026-02-28: `npm run build` ✅.
+- 2026-02-28: `npm run lint` ✅ (post Open Food Facts real + cache persistente).
+- 2026-02-28: `npm test -- nutrition.service.spec.ts tdee-calculator.service.spec.ts` ✅.
+- 2026-02-28: `npm run test:e2e -- nutrition.e2e-spec.ts` ✅.
+- 2026-02-28: `npm run build` ✅ (post integración Open Food Facts).
+- 2026-02-28: `npm run lint` ✅ (post integración Supabase storage + provider factory).
+- 2026-02-28: `npm test` ✅ (14 suites, 61 tests).
+- 2026-02-28: `npm run test:e2e` ✅ (6 suites, 30 tests).
+- 2026-02-28: `npm run build` ✅ (post integración storage).

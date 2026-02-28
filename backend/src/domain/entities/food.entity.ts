@@ -30,8 +30,32 @@ export class FoodEntity {
     return this.props.brand;
   }
 
+  get barcode(): string | null {
+    return this.props.barcode;
+  }
+
+  get caloriesPer100g(): number {
+    return this.props.caloriesPer100g;
+  }
+
+  get proteinPer100g(): number {
+    return this.props.proteinPer100g;
+  }
+
+  get carbsPer100g(): number {
+    return this.props.carbsPer100g;
+  }
+
+  get fatPer100g(): number {
+    return this.props.fatPer100g;
+  }
+
   get source(): FoodSource {
     return this.props.source;
+  }
+
+  toObject(): FoodEntityProps {
+    return { ...this.props };
   }
 
   getMacrosForGrams(grams: number): {

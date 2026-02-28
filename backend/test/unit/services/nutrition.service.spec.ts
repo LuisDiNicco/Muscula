@@ -4,6 +4,7 @@ import { IUserRepository } from '../../../src/application/interfaces/user-reposi
 import { NutritionService } from '../../../src/application/services/nutrition.service';
 import { TdeeCalculatorService } from '../../../src/application/services/tdee-calculator.service';
 import { FoodEntryEntity } from '../../../src/domain/entities/food-entry.entity';
+import type { FoodEntity } from '../../../src/domain/entities/food.entity';
 import { MealEntity } from '../../../src/domain/entities/meal.entity';
 import { UserEntity } from '../../../src/domain/entities/user.entity';
 import {
@@ -52,6 +53,9 @@ describe('NutritionService', () => {
       searchFoodByBarcode: jest.fn(),
       createCustomFood: jest.fn(),
       getDailyCalories: jest.fn(),
+      cacheApiFoods: jest
+        .fn()
+        .mockImplementation((foods: FoodEntity[]) => Promise.resolve(foods)),
       getBodyMode: jest.fn().mockResolvedValue(BodyMode.MAINTENANCE),
       setBodyMode: jest.fn().mockResolvedValue(BodyMode.MAINTENANCE),
     };
@@ -140,5 +144,6 @@ describe('NutritionService', () => {
 
     expect(result.total).toBe(0);
     expect(foodApiClient.search.mock.calls[0]).toEqual(['rice', 1, 20]);
+    expect(nutritionRepository.cacheApiFoods.mock.calls).toHaveLength(1);
   });
 });

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BODY_METRIC_REPOSITORY } from '../../../application/interfaces/body-metric-repository.interface';
 import { FOOD_API_CLIENT } from '../../../application/interfaces/food-api-client.interface';
 import { FILE_STORAGE_SERVICE } from '../../../application/interfaces/file-storage.interface';
@@ -9,6 +10,7 @@ import { PrismaBodyMetricRepository } from '../../secondary-adapters/database/nu
 import { PrismaNutritionRepository } from '../../secondary-adapters/database/nutrition/prisma-nutrition.repository';
 import { PrismaProgressPhotoRepository } from '../../secondary-adapters/database/nutrition/prisma-progress-photo.repository';
 import { LocalFileStorageService } from '../../secondary-adapters/storage/local-file-storage.service';
+import { SupabaseStorageService } from '../../secondary-adapters/storage/supabase-storage.service';
 
 @Module({
   providers: [
@@ -28,9 +30,23 @@ import { LocalFileStorageService } from '../../secondary-adapters/storage/local-
       provide: FOOD_API_CLIENT,
       useClass: OpenFoodFactsClient,
     },
+    LocalFileStorageService,
+    SupabaseStorageService,
     {
       provide: FILE_STORAGE_SERVICE,
-      useClass: LocalFileStorageService,
+      inject: [ConfigService, LocalFileStorageService, SupabaseStorageService],
+      useFactory: (
+        configService: ConfigService,
+        localStorageService: LocalFileStorageService,
+        supabaseStorageService: SupabaseStorageService,
+      ) => {
+        const hasSupabaseConfig =
+          (configService.get<string>('SUPABASE_URL') ?? '').length > 0 &&
+          (configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+            .length > 0;
+
+        return hasSupabaseConfig ? supabaseStorageService : localStorageService;
+      },
     },
   ],
   exports: [

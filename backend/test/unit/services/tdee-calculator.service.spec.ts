@@ -55,6 +55,7 @@ describe('TdeeCalculatorService', () => {
       searchFoodByBarcode: jest.fn(),
       createCustomFood: jest.fn(),
       getDailyCalories: jest.fn(),
+      cacheApiFoods: jest.fn(),
       getBodyMode: jest.fn(),
       setBodyMode: jest.fn(),
     };

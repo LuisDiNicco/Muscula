@@ -268,6 +268,102 @@ export class PrismaNutritionRepository implements INutritionRepository {
       .sort((left, right) => left.date.getTime() - right.date.getTime());
   }
 
+  async cacheApiFoods(foods: FoodEntity[]): Promise<FoodEntity[]> {
+    const cached: FoodEntity[] = [];
+
+    for (const food of foods) {
+      const data = food.toObject();
+      const mappedSource =
+        data.source === FoodSource.USER_CUSTOM ? 'USER' : 'API';
+
+      let row:
+        | {
+            id: string;
+            name: string;
+            brand: string | null;
+            barcode: string | null;
+            caloriesPer100g: number;
+            proteinPer100g: number;
+            carbsPer100g: number;
+            fatPer100g: number;
+            source: string;
+            createdByUserId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+          }
+        | undefined;
+
+      if (data.barcode !== null) {
+        row = await this.prismaService.food.upsert({
+          where: {
+            barcode: data.barcode,
+          },
+          create: {
+            name: data.name,
+            brand: data.brand,
+            barcode: data.barcode,
+            caloriesPer100g: data.caloriesPer100g,
+            proteinPer100g: data.proteinPer100g,
+            carbsPer100g: data.carbsPer100g,
+            fatPer100g: data.fatPer100g,
+            source: mappedSource,
+            createdByUserId: null,
+          },
+          update: {
+            name: data.name,
+            brand: data.brand,
+            caloriesPer100g: data.caloriesPer100g,
+            proteinPer100g: data.proteinPer100g,
+            carbsPer100g: data.carbsPer100g,
+            fatPer100g: data.fatPer100g,
+            source: mappedSource,
+          },
+        });
+      } else {
+        const existing = await this.prismaService.food.findFirst({
+          where: {
+            source: 'API',
+            createdByUserId: null,
+            name: data.name,
+            brand: data.brand,
+          },
+        });
+
+        if (existing !== null) {
+          row = await this.prismaService.food.update({
+            where: {
+              id: existing.id,
+            },
+            data: {
+              caloriesPer100g: data.caloriesPer100g,
+              proteinPer100g: data.proteinPer100g,
+              carbsPer100g: data.carbsPer100g,
+              fatPer100g: data.fatPer100g,
+            },
+          });
+        } else {
+          row = await this.prismaService.food.create({
+            data: {
+              name: data.name,
+              brand: data.brand,
+              barcode: null,
+              caloriesPer100g: data.caloriesPer100g,
+              proteinPer100g: data.proteinPer100g,
+              carbsPer100g: data.carbsPer100g,
+              fatPer100g: data.fatPer100g,
+              source: mappedSource,
+              createdByUserId: null,
+            },
+          });
+        }
+      }
+
+      cached.push(this.toFoodEntity(row));
+    }
+
+    return cached;
+  }
+
   async getBodyMode(userId: string): Promise<BodyMode> {
     const rows = await this.prismaService.$queryRaw<
       Array<{ bodyMode: string }>
