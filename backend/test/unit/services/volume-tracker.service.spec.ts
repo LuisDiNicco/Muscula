@@ -16,6 +16,14 @@ describe('VolumeTrackerService', () => {
       getUserVolumeLandmarks: jest.fn(),
       getAverageReadiness: jest.fn(),
       getWeeklyEstimatedOneRmByMuscleGroup: jest.fn(),
+      getMuscleHeatmapSnapshot: jest.fn(),
+      getStrengthTrend: jest.fn(),
+      getTonnageTrend: jest.fn(),
+      getBestOneRm: jest.fn(),
+      getBestSet: jest.fn(),
+      getBestSessionVolume: jest.fn(),
+      getBodyWeightVsOneRmPoints: jest.fn(),
+      getWeeklyVolumeVsReadinessPoints: jest.fn(),
     };
 
     service = new VolumeTrackerService(analyticsRepository);

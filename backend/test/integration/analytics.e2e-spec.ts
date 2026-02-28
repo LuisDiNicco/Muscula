@@ -4,7 +4,10 @@ import { PrismaHealthIndicator } from '@nestjs/terminus';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { TOKEN_SERVICE } from '../../src/application/interfaces/token-service.interface';
-import { AnalyticsService } from '../../src/application/services/analytics.service';
+import {
+  AnalyticsService,
+  type CorrelationResult,
+} from '../../src/application/services/analytics.service';
 import { VolumeTrackerService } from '../../src/application/services/volume-tracker.service';
 import { MuscleGroup } from '../../src/domain/enums';
 import { GlobalExceptionFilter } from '../../src/infrastructure/base/filters/global-exception.filter';
@@ -49,13 +52,68 @@ describe('Analytics (e2e)', () => {
     ]),
   };
 
-  const analyticsServiceMock: Pick<AnalyticsService, 'checkDeload'> = {
+  const analyticsServiceMock: Pick<
+    AnalyticsService,
+    | 'checkDeload'
+    | 'getMuscleHeatmap'
+    | 'getStrengthTrend'
+    | 'getTonnageTrend'
+    | 'getPersonalRecords'
+    | 'getCorrelations'
+  > = {
     checkDeload: jest.fn().mockResolvedValue({
       needsDeload: false,
       reasons: [],
       affectedMuscles: [],
       readinessAverageLast14Days: 3.4,
     }),
+    getMuscleHeatmap: jest.fn().mockResolvedValue([
+      {
+        muscleGroup: MuscleGroup.CHEST,
+        lastTrainedAt: new Date('2026-02-28T00:00:00.000Z'),
+        effectiveSetsThisWeek: 10,
+        recovery: 'RECENT',
+      },
+    ]),
+    getStrengthTrend: jest.fn().mockResolvedValue([
+      {
+        date: new Date('2026-02-28T00:00:00.000Z'),
+        estimatedOneRm: 132.5,
+      },
+    ]),
+    getTonnageTrend: jest.fn().mockResolvedValue([
+      {
+        date: new Date('2026-02-28T00:00:00.000Z'),
+        tonnage: 4200,
+      },
+    ]),
+    getPersonalRecords: jest.fn().mockResolvedValue({
+      exerciseId: 'exercise-1',
+      period: 'all',
+      bestOneRm: 145,
+      bestSet: {
+        sessionId: 'session-1',
+        date: new Date('2026-02-28T00:00:00.000Z'),
+        weightKg: 120,
+        reps: 8,
+        rir: 1,
+      },
+      bestVolumeSession: {
+        sessionId: 'session-2',
+        date: new Date('2026-02-27T00:00:00.000Z'),
+        tonnage: 5100,
+      },
+    }),
+    getCorrelations: jest.fn().mockResolvedValue({
+      type: 'WEEKLY_VOLUME_VS_READINESS',
+      points: [
+        {
+          x: 52,
+          y: 3.4,
+          date: new Date('2026-02-24T00:00:00.000Z'),
+        },
+      ],
+    } satisfies CorrelationResult),
   };
 
   const tokenServiceMock = {
@@ -160,6 +218,97 @@ describe('Analytics (e2e)', () => {
       .expect((response) => {
         const body = response.body as { needsDeload: boolean };
         expect(body.needsDeload).toBe(false);
+      });
+  });
+
+  it('GET /api/v1/analytics/heatmap returns heatmap list', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get('/api/v1/analytics/heatmap')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as {
+          items: Array<{ muscleGroup: MuscleGroup; recovery: string }>;
+        };
+
+        expect(body.items[0]?.muscleGroup).toBe(MuscleGroup.CHEST);
+        expect(body.items[0]?.recovery).toBe('RECENT');
+      });
+  });
+
+  it('GET /api/v1/analytics/strength returns strength trend', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get('/api/v1/analytics/strength?exerciseId=exercise-1&period=90d')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as {
+          points: Array<{ estimatedOneRm: number }>;
+        };
+
+        expect(body.points[0]?.estimatedOneRm).toBe(132.5);
+      });
+  });
+
+  it('GET /api/v1/analytics/strength validates required query params', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get('/api/v1/analytics/strength')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(400);
+  });
+
+  it('GET /api/v1/analytics/tonnage returns tonnage trend', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get('/api/v1/analytics/tonnage?exerciseId=exercise-1&period=90d')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as {
+          points: Array<{ tonnage: number }>;
+        };
+
+        expect(body.points[0]?.tonnage).toBe(4200);
+      });
+  });
+
+  it('GET /api/v1/analytics/prs returns personal records', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get('/api/v1/analytics/prs?exerciseId=exercise-1&period=all')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as { bestOneRm: number };
+        expect(body.bestOneRm).toBe(145);
+      });
+  });
+
+  it('GET /api/v1/analytics/correlations returns correlation points', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .get(
+        '/api/v1/analytics/correlations?type=WEEKLY_VOLUME_VS_READINESS&period=90d',
+      )
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as {
+          type: string;
+          points: Array<{ x: number; y: number }>;
+        };
+
+        expect(body.type).toBe('WEEKLY_VOLUME_VS_READINESS');
+        expect(body.points[0]?.x).toBe(52);
       });
   });
 });

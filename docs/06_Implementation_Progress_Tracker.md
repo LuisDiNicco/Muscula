@@ -70,8 +70,14 @@
   - Infrastructure implemented: `AnalyticsController`, DTOs de analytics, `AnalyticsPersistenceModule`, `AnalyticsModule` y wiring en `AppModule`.
   - Prisma implementation extended: `PrismaSessionRepository` ahora expone queries optimizadas (`$queryRaw`) para volumen efectivo por grupo muscular, landmarks por usuario, readiness promedio y 1RM semanal por grupo muscular.
   - Tests added: unit (`volume-tracker.service.spec.ts`, `analytics.service.spec.ts`) + integration/e2e (`analytics.e2e-spec.ts`).
+- **Completed in this phase (extended slice):**
+  - `AnalyticsService` extendido con: `getMuscleHeatmap`, `getStrengthTrend`, `getTonnageTrend`, `getPersonalRecords`, `getCorrelations` (incluye cache TTL para heatmap y resolución de periodos `30d/90d/180d/1y/all`).
+  - `AnalyticsController` extendido con endpoints: `GET /analytics/heatmap`, `GET /analytics/strength`, `GET /analytics/tonnage`, `GET /analytics/prs`, `GET /analytics/correlations`.
+  - DTOs de query/response agregados para periodos, correlaciones, trends, heatmap y PRs.
+  - `PrismaSessionRepository` extendido con queries pesadas para trends/PRs/correlaciones y snapshot de heatmap.
+  - Tests fortalecidos: unit con más escenarios y e2e con validación de query params obligatorios y endpoints nuevos.
 - **Current pending in BE-7:**
-  - Completar endpoints restantes del plan (`heatmap`, `strength trend`, `tonnage`, `PRs`, `correlations`) sobre la misma base de repositorio/servicios ya incorporada.
+  - Validar y ajustar exactitud fina de señales de recuperación/heatmap y correlaciones con datos reales de staging para calibración final.
 
 ## Drift / Technical Debt Log
 
@@ -124,3 +130,4 @@
 - 2026-02-28: `npm run build` ✅ (post integración storage).
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (auditoría tech lead final, estado PR-ready).
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (inicio BE-7 analytics slice: volume tracker + deload check + endpoints + tests).
+- 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (BE-7 extended slice: heatmap + strength + tonnage + PRs + correlations + tests robustos).

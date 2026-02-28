@@ -20,6 +20,14 @@ describe('AnalyticsService', () => {
       getUserVolumeLandmarks: jest.fn(),
       getAverageReadiness: jest.fn(),
       getWeeklyEstimatedOneRmByMuscleGroup: jest.fn(),
+      getMuscleHeatmapSnapshot: jest.fn(),
+      getStrengthTrend: jest.fn(),
+      getTonnageTrend: jest.fn(),
+      getBestOneRm: jest.fn(),
+      getBestSet: jest.fn(),
+      getBestSessionVolume: jest.fn(),
+      getBodyWeightVsOneRmPoints: jest.fn(),
+      getWeeklyVolumeVsReadinessPoints: jest.fn(),
     };
 
     service = new AnalyticsService(volumeTrackerService, analyticsRepository);
@@ -73,5 +81,86 @@ describe('AnalyticsService', () => {
 
     expect(result.needsDeload).toBe(true);
     expect(result.reasons).toContain('Readiness score bajo sostenido');
+  });
+
+  it('returns cached heatmap within TTL window', async () => {
+    analyticsRepository.getMuscleHeatmapSnapshot.mockResolvedValue([
+      {
+        muscleGroup: MuscleGroup.CHEST,
+        lastTrainedAt: new Date('2026-02-28T10:00:00.000Z'),
+        effectiveSetsThisWeek: 8,
+      },
+    ]);
+
+    await service.getMuscleHeatmap('user-1');
+    await service.getMuscleHeatmap('user-1');
+
+    expect(
+      analyticsRepository.getMuscleHeatmapSnapshot.mock.calls,
+    ).toHaveLength(1);
+  });
+
+  it('returns strength and tonnage trends using selected period', async () => {
+    analyticsRepository.getStrengthTrend.mockResolvedValue([
+      { date: new Date('2026-02-20T00:00:00.000Z'), estimatedOneRm: 130 },
+    ]);
+    analyticsRepository.getTonnageTrend.mockResolvedValue([
+      { date: new Date('2026-02-20T00:00:00.000Z'), tonnage: 3200 },
+    ]);
+
+    const strength = await service.getStrengthTrend(
+      'user-1',
+      'exercise-1',
+      '90d',
+    );
+    const tonnage = await service.getTonnageTrend(
+      'user-1',
+      'exercise-1',
+      '90d',
+    );
+
+    expect(strength[0]?.estimatedOneRm).toBe(130);
+    expect(tonnage[0]?.tonnage).toBe(3200);
+    expect(analyticsRepository.getStrengthTrend.mock.calls).toHaveLength(1);
+    expect(analyticsRepository.getTonnageTrend.mock.calls).toHaveLength(1);
+  });
+
+  it('aggregates personal records from repository', async () => {
+    analyticsRepository.getBestOneRm.mockResolvedValue(142.5);
+    analyticsRepository.getBestSet.mockResolvedValue({
+      sessionId: 'session-1',
+      date: new Date('2026-02-20T00:00:00.000Z'),
+      weightKg: 120,
+      reps: 8,
+      rir: 1,
+    });
+    analyticsRepository.getBestSessionVolume.mockResolvedValue({
+      sessionId: 'session-2',
+      date: new Date('2026-02-21T00:00:00.000Z'),
+      tonnage: 5200,
+    });
+
+    const result = await service.getPersonalRecords(
+      'user-1',
+      'exercise-1',
+      'all',
+    );
+
+    expect(result.bestOneRm).toBe(142.5);
+    expect(result.bestSet?.reps).toBe(8);
+    expect(result.bestVolumeSession?.tonnage).toBe(5200);
+  });
+
+  it('returns empty correlation when exerciseId is missing for BODY_WEIGHT_VS_1RM', async () => {
+    const result = await service.getCorrelations(
+      'user-1',
+      'BODY_WEIGHT_VS_1RM',
+      '30d',
+    );
+
+    expect(result.points).toHaveLength(0);
+    expect(
+      analyticsRepository.getBodyWeightVsOneRmPoints.mock.calls,
+    ).toHaveLength(0);
   });
 });
