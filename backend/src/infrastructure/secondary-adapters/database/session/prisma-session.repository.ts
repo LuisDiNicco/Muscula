@@ -10,7 +10,7 @@ import {
   UpdateSetInput,
 } from '../../../../application/interfaces/training-session-repository.interface';
 import { SessionEntity } from '../../../../domain/entities/session.entity';
-import { SessionStatus } from '../../../../domain/enums';
+import { MuscleGroup, SessionStatus } from '../../../../domain/enums';
 import { EquipmentType } from '../../../../domain/enums/equipment-type.enum';
 import { MovementPattern } from '../../../../domain/enums/movement-pattern.enum';
 import { EntityNotFoundError } from '../../../../domain/errors/entity-not-found.error';
@@ -19,6 +19,12 @@ import {
   ISessionHistoryRepository,
   LastSessionPerformance,
 } from '../../../../application/interfaces/session-history-repository.interface';
+import {
+  IAnalyticsRepository,
+  MuscleOneRmWeeklyPoint,
+  MuscleVolumeSnapshot,
+  VolumeLandmark,
+} from '../../../../application/interfaces/analytics-repository.interface';
 
 type SessionRow = {
   id: string;
@@ -38,7 +44,10 @@ type SessionRow = {
 
 @Injectable()
 export class PrismaSessionRepository
-  implements ITrainingSessionRepository, ISessionHistoryRepository
+  implements
+    ITrainingSessionRepository,
+    ISessionHistoryRepository,
+    IAnalyticsRepository
 {
   constructor(private readonly prismaService: PrismaService) {}
 
@@ -499,6 +508,129 @@ export class PrismaSessionRepository
       equipmentType: row.sessionExercise.exercise
         .equipmentType as EquipmentType,
     };
+  }
+
+  async getEffectiveVolumeByMuscleGroup(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<MuscleVolumeSnapshot[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ muscleGroup: string; effectiveSets: number }>
+    >`
+      SELECT
+        em."muscleGroup"::text as "muscleGroup",
+        COUNT(*)::int as "effectiveSets"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "ExerciseMuscle" em ON em."primaryForId" = se."exerciseId"
+      WHERE s."userId" = ${userId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."rir" <= 4
+      GROUP BY em."muscleGroup"
+    `;
+
+    return rows.map((row) => ({
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      effectiveSets: row.effectiveSets,
+    }));
+  }
+
+  async getUserVolumeLandmarks(userId: string): Promise<VolumeLandmark[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ muscleGroup: string; mev: number; mrv: number }>
+    >`
+      SELECT
+        uvl."muscleGroup"::text as "muscleGroup",
+        uvl."mev" as "mev",
+        uvl."mrv" as "mrv"
+      FROM "UserVolumeLandmark" uvl
+      WHERE uvl."userId" = ${userId}
+    `;
+
+    return rows.map((row) => ({
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      mev: row.mev,
+      mrv: row.mrv,
+    }));
+  }
+
+  async getAverageReadiness(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number | null> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{ avgReadiness: number | null }>
+    >`
+      SELECT
+        AVG(rs."totalScore")::float as "avgReadiness"
+      FROM "ReadinessScore" rs
+      INNER JOIN "Session" s ON s.id = rs."sessionId"
+      WHERE s."userId" = ${userId}
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND s."deletedAt" IS NULL
+    `;
+
+    const average = rows[0]?.avgReadiness ?? null;
+
+    if (average === null) {
+      return null;
+    }
+
+    return Number(average.toFixed(2));
+  }
+
+  async getWeeklyEstimatedOneRmByMuscleGroup(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<MuscleOneRmWeeklyPoint[]> {
+    const rows = await this.prismaService.$queryRaw<
+      Array<{
+        weekStart: Date;
+        muscleGroup: string;
+        avgEstimatedOneRm: number;
+      }>
+    >`
+      SELECT
+        DATE_TRUNC('week', s."startedAt")::date as "weekStart",
+        em."muscleGroup"::text as "muscleGroup",
+        AVG(
+          (
+            (ws."weightKg" * (1 + ws."reps"::float / 30)) +
+            (ws."weightKg" * (36 / (37 - ws."reps"::float)))
+          ) / 2
+        )::float as "avgEstimatedOneRm"
+      FROM "WorkingSet" ws
+      INNER JOIN "SessionExercise" se ON se.id = ws."sessionExerciseId"
+      INNER JOIN "Session" s ON s.id = se."sessionId"
+      INNER JOIN "ExerciseMuscle" em ON em."primaryForId" = se."exerciseId"
+      WHERE s."userId" = ${userId}
+        AND s."status" = 'COMPLETED'
+        AND s."deletedAt" IS NULL
+        AND s."startedAt" >= ${startDate}
+        AND s."startedAt" < ${endDate}
+        AND ws."completed" = true
+        AND ws."skipped" = false
+        AND ws."rir" <= 4
+        AND ws."reps" BETWEEN 1 AND 10
+      GROUP BY DATE_TRUNC('week', s."startedAt")::date, em."muscleGroup"
+      ORDER BY DATE_TRUNC('week', s."startedAt")::date ASC
+    `;
+
+    return rows.map((row) => ({
+      weekStart: new Date(row.weekStart),
+      muscleGroup: row.muscleGroup as MuscleGroup,
+      avgEstimatedOneRm: Number(row.avgEstimatedOneRm.toFixed(2)),
+    }));
   }
 
   private async assertSessionOwnership(

@@ -3,7 +3,7 @@
 **Last update:** 2026-02-28
 **Source of truth:** `docs/05_Implementation_Plan.md`
 
-**Checkpoint:** BE-5 cerrada al 100%. BE-6 backend quedó funcional end-to-end: `bodyMode` durable, Open Food Facts integrado con parseo + validación + cache persistente y storage externo (Supabase) con fallback local.
+**Checkpoint:** BE-6 backend cerrada al 100%. BE-7 backend iniciada en rama dedicada desde `develop` con primer slice funcional de analíticas (volumen semanal/histórico + chequeo de deload).
 
 ## Backend Phases
 
@@ -62,6 +62,17 @@
 - **Current pending in BE-6:**
   - No pendientes críticos de backend detectados en esta fase.
 
+### BE-7 — Analytics and Dashboard
+- **Status:** 🟡 In progress
+- **Completed in this phase (initial slice):**
+  - Application interface implemented: `IAnalyticsRepository`.
+  - Application services implemented: `VolumeTrackerService` (volumen semanal + historial con cache in-memory TTL 5 minutos) y `AnalyticsService.checkDeload` (volumen MRV, readiness y tendencia de 1RM semanal).
+  - Infrastructure implemented: `AnalyticsController`, DTOs de analytics, `AnalyticsPersistenceModule`, `AnalyticsModule` y wiring en `AppModule`.
+  - Prisma implementation extended: `PrismaSessionRepository` ahora expone queries optimizadas (`$queryRaw`) para volumen efectivo por grupo muscular, landmarks por usuario, readiness promedio y 1RM semanal por grupo muscular.
+  - Tests added: unit (`volume-tracker.service.spec.ts`, `analytics.service.spec.ts`) + integration/e2e (`analytics.e2e-spec.ts`).
+- **Current pending in BE-7:**
+  - Completar endpoints restantes del plan (`heatmap`, `strength trend`, `tonnage`, `PRs`, `correlations`) sobre la misma base de repositorio/servicios ya incorporada.
+
 ## Drift / Technical Debt Log
 
 ### Active deviations
@@ -112,3 +123,4 @@
 - 2026-02-28: `npm run test:e2e` ✅ (6 suites, 30 tests).
 - 2026-02-28: `npm run build` ✅ (post integración storage).
 - 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (auditoría tech lead final, estado PR-ready).
+- 2026-02-28: `npm run lint; npm test; npm run test:e2e; npm run build` ✅ (inicio BE-7 analytics slice: volume tracker + deload check + endpoints + tests).
