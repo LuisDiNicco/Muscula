@@ -69,6 +69,7 @@ describe('Auth/User (e2e)', () => {
     | 'updateProfile'
     | 'getPreferences'
     | 'updatePreferences'
+    | 'onboardUser'
     | 'deleteAccount'
   > = {
     getProfile: jest.fn().mockResolvedValue(buildUser()),
@@ -98,6 +99,24 @@ describe('Auth/User (e2e)', () => {
       notifyDeload: true,
       notifyAchievements: true,
       notifyWeightReminder: true,
+    }),
+    onboardUser: jest.fn().mockResolvedValue({
+      profile: buildUser(),
+      preferences: {
+        unitSystem: 'METRIC',
+        language: 'ES',
+        theme: 'DARK',
+        restTimeCompoundSec: 180,
+        restTimeIsolationSec: 90,
+        restAlertBeforeSec: 30,
+        notifyRestTimer: true,
+        notifyReminder: true,
+        notifyDeload: true,
+        notifyAchievements: true,
+        notifyWeightReminder: true,
+      },
+      equipmentProfileId: 'eq-profile-1',
+      suggestedMesocycleTemplate: 'HYPERTROPHY_INTERMEDIATE',
     }),
     deleteAccount: jest.fn().mockResolvedValue(undefined),
   };
@@ -213,6 +232,38 @@ describe('Auth/User (e2e)', () => {
         const body = response.body as { id: string; email: string };
         expect(body.id).toBe('user-1');
         expect(body.email).toBe('luis@example.com');
+      });
+  });
+
+  it('POST /api/v1/users/me/onboarding returns 201 with onboarding result', async () => {
+    const httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+
+    await request(httpServer)
+      .post('/api/v1/users/me/onboarding')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        currentWeightKg: 77.5,
+        heightCm: 177,
+        age: 29,
+        gender: 'MALE',
+        objective: 'HYPERTROPHY',
+        experience: 'INTERMEDIATE',
+        equipment: ['DUMBBELL', 'BENCH'],
+        unitSystem: 'METRIC',
+      })
+      .expect(201)
+      .expect((response: SupertestResponse) => {
+        const body = response.body as {
+          profile: { id: string };
+          equipmentProfileId: string;
+          suggestedMesocycleTemplate: string;
+        };
+
+        expect(body.profile.id).toBe('user-1');
+        expect(body.equipmentProfileId).toBe('eq-profile-1');
+        expect(body.suggestedMesocycleTemplate).toBe(
+          'HYPERTROPHY_INTERMEDIATE',
+        );
       });
   });
 });

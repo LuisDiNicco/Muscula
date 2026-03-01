@@ -1,8 +1,10 @@
 # Plan de Implementación — Musculá v1.0
 
-**Versión:** 1.0  
-**Fecha:** 2026-02-27  
-**Reglas de desarrollo:** Las definidas en `.github/development_rules/` se aplican al 100% del código generado. No hay excepciones.
+**Versión:** 1.1  
+**Fecha original:** 2026-02-27  
+**Última actualización:** 2026-02-28  
+**Reglas de desarrollo:** Las definidas en `.github/development_rules/` se aplican al 100% del código generado. No hay excepciones.  
+**Estado actual:** Backend BE-1 a BE-8 completadas. BE-9 en progreso. Frontend no iniciado.
 
 ---
 
@@ -13,6 +15,8 @@
 3. [Fases del Frontend](#3-fases-del-frontend)
 4. [Checklist de Compliance por Fase](#4-checklist-de-compliance-por-fase)
 5. [Estrategia de Testing](#5-estrategia-de-testing)
+6. [Convenciones de Git](#6-convenciones-de-git)
+7. [Backlog de Mejoras Post-v1.0 (v1.1+)](#7-backlog-de-mejoras-post-v10-v11)
 6. [Convenciones de Git](#6-convenciones-de-git)
 
 ---
@@ -1429,5 +1433,130 @@ FE-1 → FE-2 → FE-3 → FE-4 → FE-5 → FE-6 → FE-7 → FE-8 → FE-9
 | FE-9 | Todo el backend |
 
 ---
+
+## 7. Backlog de Mejoras Post-v1.0 (v1.1+)
+
+Las siguientes funcionalidades y mejoras están fuera del scope de v1.0 pero se consideran valiosas para iteraciones posteriores. Se documentan aquí para que no se pierdan y para facilitar la priorización futura.
+
+### 7.1 Funcionalidades Nuevas Propuestas
+
+#### BL-001: Plantillas de Mesociclo Predefinidas (Prioridad: Alta)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | El sistema debería incluir un catálogo de mesociclos plantilla diseñados por nivel de experiencia y objetivo. Al completar el onboarding, se sugiere una plantilla automáticamente. |
+| **Justificación** | El usuario principiante (STK-02) no sabe diseñar un mesociclo. Sin plantillas, el onboarding es un callejón sin salida. Los usuarios avanzados también las valoran como punto de partida. |
+| **Scope estimado** | Backend: seed de 8-12 plantillas. Service: `getRecommendedTemplate(experience, objective)`. Frontend: selector de plantillas en onboarding (paso 6 post-equipamiento). |
+| **Dependencias** | BE-4 (Mesocycles), BE-9 (Onboarding) |
+
+#### BL-002: Historial de Sesiones con Vista de Calendario (Prioridad: Alta)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Vista de calendario mensual con indicadores visuales de días entrenados (puntos/colores según tipo de entrenamiento). Tap en un día muestra las sesiones de ese día. |
+| **Justificación** | RF-EN-012 especifica esta vista pero no hay endpoint dedicado. El frontend necesita un endpoint `GET /sessions/calendar?month=YYYY-MM` que retorne un mapa `{date: sessionSummary[]}`. |
+| **Scope estimado** | Backend: endpoint de calendario con aggregación por día. Frontend: componente Calendar con dots colored por grupo muscular dominante. |
+| **Dependencias** | BE-5 (Sessions) |
+
+#### BL-003: Búsqueda Global Unificada (Prioridad: Media)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Barra de búsqueda global que busca simultáneamente en ejercicios, artículos, sesiones pasadas y notas. Feedback instantáneo con categorías de resultados. |
+| **Justificación** | La navegación por módulos obliga al usuario a saber exactamente dónde está lo que busca. Una búsqueda global reduce fricción significativamente, especialmente para notas y sesiones históricas. |
+| **Scope estimado** | Backend: `GET /search?q=...` con resultados agrupados por tipo. Frontend: SearchBar component en el header. |
+| **Dependencias** | Todos los módulos de lectura |
+
+#### BL-004: Streaks y Consistencia (Prioridad: Media)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Tracking de "rachas" de entrenamiento y nutrición: días consecutivos con sesión registrada, días consecutivos con comidas registradas, semanas sin faltar al plan. Se integra con el sistema de logros existente. |
+| **Justificación** | La consistencia es el factor #1 de resultados. Visualizarla motiva la adherencia al programa. Se complementa con los achievements existentes. |
+| **Scope estimado** | Backend: `GET /users/me/streaks` con cálculo de rachas actuales y mejores. Achievement conditions nuevas. Frontend: widget en dashboard. |
+| **Dependencias** | BE-5, BE-6, BE-8 (Achievements) |
+
+#### BL-005: Estimación de Tiempo de Sesión (Prioridad: Media)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Al planificar un mesociclo o antes de iniciar una sesión, mostrar una estimación del tiempo total basada en: número de series × tiempo promedio por serie (del historial del usuario) + descansos configurados. |
+| **Justificación** | El usuario quiere saber "¿cuánto me va a llevar hoy?" antes de ir al gym. Es información de alto valor con bajo costo de implementación. |
+| **Scope estimado** | Backend: método en `TrainingSessionService`. Frontend: badge de duración estimada en la pantilla del día. |
+| **Dependencias** | BE-5 |
+
+#### BL-006: Modo "Quick Log" (Prioridad: Media)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Modo alternativo de registro rápido: en lugar de seguir la plantilla del mesociclo, el usuario selecciona ejercicios ad-hoc y registra series. Para sesiones no planificadas (cardio, stretching, o entrenamientos improvisados). |
+| **Justificación** | No todos los entrenamientos siguen el mesociclo. Si el usuario no puede registrar un entrenamiento fuera de plan, pierde datos o deja de usar la app. |
+| **Scope estimado** | Backend: ya soportado parcialmente (sesión sin mesocycle vinculado). Frontend: flujo alternativo de inicio de sesión. |
+| **Dependencias** | BE-5 |
+
+#### BL-007: Notas de Ejercicio Persistentes (Prioridad: Baja)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Notas permanentes a nivel de ejercicio (no de serie/sesión): "En este gym, la polea alta está al lado de la ventana", "Usar agarre D para este ejercicio". Se muestran siempre que aparece ese ejercicio en una sesión. |
+| **Justificación** | Las notas de serie son efímeras. Un setup tip que aplica siempre debería persistir a nivel de ejercicio-usuario. |
+| **Scope estimado** | Backend: `PATCH /exercises/:id/user-notes`. Frontend: input en la ficha del ejercicio. |
+| **Dependencias** | BE-3 |
+
+#### BL-008: Integración con Google Fit (Prioridad: Baja)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Importar pasos diarios y calorías activas estimadas desde Google Fit vía OAuth2 REST API. Los datos alimentan el cálculo de TDEE como factor de actividad real. |
+| **Justificación** | RF-NU-006 lo define como SHOULD. Mejora la precisión del TDEE al usar actividad real en lugar de un factor estático. |
+| **Scope estimado** | Backend: `GoogleFitClient` implementando `IHealthApiClient`. Endpoint OAuth2 flow. Frontend: settings de integración. |
+| **Dependencias** | BE-6 |
+
+#### BL-009: Modo Coach / Entrenador Personal (Prioridad: Baja — v2)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Un coach puede crear mesociclos para clientes, ver su progreso en un dashboard dedicado, y recibir alertas de adherencia. |
+| **Justificación** | STK-03 lo define como stakeholder terciario. Es un diferenciador competitivo fuerte pero requiere modelo multi-tenant. |
+| **Scope estimado** | Roles `COACH`/`ATHLETE`, relación coach-athlete, dashboard de coach, permissions model. Gran refactor. |
+| **Dependencias** | Todo v1 completo |
+
+#### BL-010: Exportación a PDF de Mesociclo (Prioridad: Baja)
+
+| Campo | Valor |
+|---|---|
+| **Descripción** | Generar un PDF printable del mesociclo con la estructura de días, ejercicios, series objetivo, y espacio para anotar a mano. Para usuarios que prefieren papel en el gym como backup. |
+| **Justificación** | Algunos usuarios intermedios/avanzados imprimen su programa como respaldo o para entrenar sin el teléfono. Bajo esfuerzo, alto valor percibido. |
+| **Scope estimado** | Backend: endpoint `GET /mesocycles/:id/pdf`. Librería: PDFKit o puppeteer-html-to-pdf. |
+| **Dependencias** | BE-4 |
+
+### 7.2 Mejoras Técnicas Propuestas
+
+| ID | Mejora | Prioridad | Justificación |
+|---|---|---|---|
+| TD-001 | Migrar cache in-memory a Redis cuando se escale | Baja | Actual cache per-instance es suficiente para single instance. Redis necesario para horizontal scaling. |
+| TD-002 | Rate limiting por usuario (no solo por IP) | Media | Actualmente por IP. Usuarios detrás de NAT comparten límite. |
+| TD-003 | Soft delete con cleanup job (GDPR compliance) | Media | Soft delete implementado. Falta job que purge datos después de 30 días de gracia. |
+| TD-004 | Email service real (SendGrid/Resend free tier) | Alta | Actualmente el password reset loguea el token. Necesitamos email real para producción. |
+| TD-005 | API versioning strategy | Baja | Actualmente `/api/v1/`. Definir estrategia cuando v2 sea necesario. |
+| TD-006 | Database backup automático | Media | Depende del provider (Supabase/Neon lo incluyen). Verificar que esté activo. |
+| TD-007 | CI/CD pipeline completo | Alta | Definir GitHub Actions: lint → test → build → deploy. |
+| TD-008 | Monitoring y alertas básicas | Media | Health check existe. Falta alerting en caso de downtime. |
+| TD-009 | Seed de 150+ ejercicios con media | Alta | Seed actual tiene ejercicios base. Completar hasta 150+ con GIFs/videos para producción. |
+| TD-010 | Audit log para operaciones sensibles | Baja | Registrar cambios de password, eliminación de cuenta, exports de datos. |
+
+### 7.3 Correcciones Detectadas en Documentación vs. Implementación
+
+| Área | Discrepancia | Estado | Resolución |
+|---|---|---|---|
+| Architecture doc | Referenciaba NestJS 10+ | ✅ Corregido | Actualizado a NestJS 11 |
+| project-context.md | Referenciaba NotiFinance | ✅ Corregido | Actualizado a Musculá con datos reales |
+| Backend structure | `src/modules/` en prompts vs. `src/` real | Documentado | La estructura es `src/domain/`, `src/application/`, `src/infrastructure/` (no module-based) |
+| Prisma version | SRS no especifica versión | Documentado | Prisma 6.16 en uso |
+| Test framework | Plan dice Jest pero el proyecto usa Jest 30 | Documentado | Jest 30 + ts-jest 29 + Supertest 7 |
+
+---
+
+*Fin del Plan de Implementación. Versión 1.1 — 2026-02-28.*
 
 *Fin del Plan de Implementación. Versión 1.0 — 2026-02-27.*

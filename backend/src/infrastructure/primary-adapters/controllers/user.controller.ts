@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Post,
   Put,
   UseGuards,
 } from '@nestjs/common';
@@ -17,7 +18,9 @@ import {
   type AuthenticatedUser,
 } from '../decorators/current-user.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { CompleteOnboardingDto } from './dtos/user/complete-onboarding.dto';
 import { DeleteAccountDto } from './dtos/user/delete-account.dto';
+import { OnboardingResponseDto } from './dtos/user/onboarding-response.dto';
 import { UpdatePreferencesDto } from './dtos/user/update-preferences.dto';
 import { UpdateProfileDto } from './dtos/user/update-profile.dto';
 import { UserPreferencesResponseDto } from './dtos/user/user-preferences-response.dto';
@@ -51,6 +54,17 @@ export class UserController {
       dto.toEntity(),
     );
     return UserProfileResponseDto.fromEntity(profile);
+  }
+
+  @Post('me/onboarding')
+  @ApiOperation({ summary: 'Complete onboarding for current user' })
+  @ApiResponse({ status: 201, type: OnboardingResponseDto })
+  async completeOnboarding(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CompleteOnboardingDto,
+  ): Promise<OnboardingResponseDto> {
+    const result = await this.userService.onboardUser(user.id, dto.toEntity());
+    return OnboardingResponseDto.fromResult(result);
   }
 
   @Get('me/preferences')

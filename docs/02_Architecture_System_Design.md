@@ -27,7 +27,7 @@
 | Capa | Tecnología | Justificación | Hosting (Free Tier) |
 |---|---|---|---|
 | **Frontend** | Next.js 14+ (App Router), TypeScript, TailwindCSS, shadcn/ui, Recharts, Workbox (PWA) | SSR/SSG para SEO, App Router para layouts, shadcn/ui para componentes accesibles, Recharts para gráficos, Workbox para Service Worker robusto | Vercel |
-| **Backend** | NestJS 10+, TypeScript, Prisma ORM | Framework enterprise con DI nativo, decorators, módulos. Prisma para type-safe queries y migraciones | Render / Koyeb |
+| **Backend** | NestJS 11, TypeScript 5.7, Prisma 6 ORM | Framework enterprise con DI nativo, decorators, módulos. Prisma 6 para type-safe queries y migraciones declarativas | Render / Koyeb |
 | **Base de datos** | PostgreSQL 15+ | Relacional, ACID, JSON support, full-text search, extensiones (pg_trgm para fuzzy match) | Supabase / Neon.tech |
 | **Cache** | In-memory (NestJS CacheModule) | Para free tier no se usa Redis externo. Cache en memoria del proceso con TTL | Incluido en backend |
 | **Almacenamiento** | Supabase Storage / Filesystem local | Para fotos de progreso y media de ejercicios. Supabase Storage tiene free tier generoso | Supabase |
@@ -145,7 +145,7 @@
 │                           ▼                                              │
 │  ┌─────────────────────────────────────────────────────────┐             │
 │  │                    BACKEND (API)                          │             │
-│  │  NestJS 10+ · TypeScript · Prisma · JWT                  │             │
+│  │  NestJS 11 · TypeScript 5.7 · Prisma 6 · JWT             │             │
 │  │  ─────────────────────────────────────────────           │             │
 │  │  Responsabilidad: Lógica de negocio, autorregulación,    │             │
 │  │  TDEE dinámico, auth, validación, API REST, Swagger      │             │
